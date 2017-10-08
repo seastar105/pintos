@@ -88,7 +88,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-	while(1);
+    while(1); // Kwon Myung Joon
   return -1;
 }
 
@@ -222,8 +222,35 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
+  /* Kwon Myung Joon Editted */
+  //counting argc
+  int argc = 0;
+  int mode = 1; //0:character 1:blank
+  for (i=0; i<strlen(file_name); i++){
+    if(file_name[i]==' '){
+        if(mode == 0){
+            mode = 1;
+        }
+    } else {
+        if(mode==1){
+            argc ++;
+            mode = 0;
+        }
+    }
+  }
+  //making argv
+  char ** argv = malloc( argc * sizeof(char*));
+  if(argv == NULL)
+      goto done;
+  char *next, * token=strtok_r(file_name," ",&next);
+  for(i=0; token!=NULL; i++){
+      argv[i]=token;
+      token=strtok_r(NULL," ",&next);
+  }
+  /* end of modification from Kwon Myung Joon*/
+
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (argv[0]); //file_name -> argv[0] by Kwon Myung Joon
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -306,6 +333,43 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (!setup_stack (esp))
     goto done;
 
+  /* start modification by Kwon Myung Joon */
+  //for future reference- *esp: esp address, **esp: esp value
+  char ** argv_address = malloc(argc * sizeof(char*));
+  //argv[i] data
+  for(i=argc-1;i>=0;i--){
+    int len = strlen(argv[i]);
+    *esp = *esp - (len + 1); //for NULL sentinel
+    argv_address[i]=*esp;
+    strlcpy((char*)*esp,argv[i],len+1);
+  }
+  //word-align
+  i = ((int)(*esp)%4);
+  *esp = (*esp) - ((int)(*esp)%4);
+  if(i) {
+	  memset(*esp,0,i);
+  }	// modified by JHS; set 0 at empty bytes
+  //argv[i] address
+  *esp = *esp - 4;
+  * (int*)(*esp) = 0; // argv[argc]=0
+  for(i=argc-1;i>=0;--i){
+      *esp = *esp - 4;
+      *(void**)(*esp)=argv_address[i];
+  }
+  
+  //argv address (double pointer)
+  *esp = *esp - 4;
+  *(void**)(*esp) = *esp+4; //argv points argv[0]
+  
+  //argc
+  *esp = *esp - 4;
+  *(int*)(*esp)=argc;
+
+  //(fake) return address
+  *esp = *esp - 4;
+  *(int*)*esp = 0;
+  /* end of modification by Kwon Myung Joon */
+  
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
@@ -314,9 +378,16 @@ load (const char *file_name, void (**eip) (void), void **esp)
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);
+
+  /*modified Kwon Myung Joon */
+  if(argv)
+      free(argv);
+
+  if(argv_address)
+      free(argv_address);
+  /* end of modification*/
   return success;
 }
-
 /* load() helpers. */
 
 static bool install_page (void *upage, void *kpage, bool writable);
