@@ -100,6 +100,9 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+	/* Modified by Jeon Hae Seong */
+	struct thread* parent;				/* */
   };
 
 /* If false (default), use round-robin scheduler.

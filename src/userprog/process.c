@@ -344,11 +344,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     strlcpy((char*)*esp,argv[i],len+1);
   }
   //word-align
-  i = ((int)(*esp)%4);
   *esp = (*esp) - ((int)(*esp)%4);
-  if(i) {
-	  memset(*esp,0,i);
-  }	// modified by JHS; set 0 at empty bytes
   //argv[i] address
   *esp = *esp - 4;
   * (int*)(*esp) = 0; // argv[argc]=0
