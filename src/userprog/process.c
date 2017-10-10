@@ -41,7 +41,11 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+    palloc_free_page (fn_copy);
+  /* Added by Jeon Hae Seong */
+  else {
+
+  }
   return tid;
 }
 
@@ -65,6 +69,7 @@ start_process (void *file_name_)
   palloc_free_page (file_name);
   if (!success) 
     thread_exit ();
+  // actual start process under now
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -370,7 +375,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
-
+  hex_dump(0,*esp,20,true);
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);

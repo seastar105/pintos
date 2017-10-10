@@ -1,15 +1,28 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
+#include <string.h>
+#include "threads/vaddr.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
 #define UADDR_BOTTOM ((void*)0x08048000)
 
+void sys_exit(int status);
+void sys_halt();
+pid_t sys_exec(const char* );
+int sys_read(int fd, void* buffer, size_t size);
+int sys_write(int fd, void* buffer, size_t size);
+
 static void syscall_handler (struct intr_frame *);
-void address_validity(void *addr);							/* check if stack pointer is in user memory
+void 
+address_validity(void *addr);							/* check if stack pointer is in user memory
 														 		 if not, terminate process, added by JeonHaeSeong*/
-void buffer_validity(void *addr, size_t n);					/* check if buffer is valid */
+void 
+buffer_validity(void *addr, size_t n);					/* check if buffer is valid */
+
+void 
+get_args(struct intr_frame *f, int *args, int cnt);		/* get arguments the syscall need and store at args */
 
 void
 syscall_init (void) 
@@ -22,14 +35,31 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
+	int args[4];
 	// check if pointer is valid
 	address_validity(f->esp);
 	switch(*(int*)(f->esp)) {
-		case SYS_HALT:break;
+		case SYS_HALT:
+			{
+				halt();
+				break;
+			}
 		case SYS_EXIT:break;
 		case SYS_EXEC:break;
 		case SYS_WAIT:break;
-		case SYS_READ:break;
+		case SYS_READ:
+			{
+				/* args[0] = fd , args[1] = buffer , args[2] = size */
+				hex_dump(0,f->esp,20,true);
+				get_args(f,args,3);
+				buffer_validity((void*)args[1],(size_t)args[2]);
+				f->eax = read(args[0],(void*)args[1],(size_t)args[2]);
+				break;
+			}
+		case SYS_WRITE:
+			{
+				/* args[0] = fd , args[1] = buffer , args[2] = size */
+			}
 		case SYS_SEEK:break;
 		default:break;
 	}
@@ -46,38 +76,74 @@ void
 buffer_validity(void *addr, size_t n) {
 	int i;
 	for(i=0;i<n;i++)
-		address_validity(
+		address_validity((char*)addr+i);
+}
+/* f->esp has syscall_num, +1, +2, +3 has arguments' address */
+void
+get_args(struct intr_frame *f, int *args, int cnt) {
+	int i;
+	int *ptr;
+	for(i=0;i<cnt;i++) {
+		ptr = (int*)f->esp + i + 1;
+		address_validity(ptr);
+		args[i] = *ptr;
+	}
 }
 
 // shutdown pintos
 void 
-halt(void) {
+sys_halt(void) {
 	shutdown_power_off();
 }
 
 
 // return status to the kernel or parent
 void 
-exit(int status) {
+sys_exit(int status) {
 	struct thread *now = thread_current();
 
+	printf("%s: exit(%d)\n",now->name,status);
+	thread_exit();
 }
+
+pid_t
+sys_exec(const char *cmd_line) {
+	pid_t pid = process_execute(cmd_line);
+	/* process_execute -> thread_create -> kernel_thread -> start_process -> load */
+	/* Funcs above need to be modified */
+	// TO-DO : 
+	return pid;
+}
+
 /* it works only if fd == 0(stdin) */
-int read(int fd, void *buffer, unsigned size) {
+int 
+sys_read(int fd, void *buffer, unsigned size) {
 	int i;
 	char input;
 	if(fd == 0) {
 		for(i=0;i<size;i++) {
 			input = input_getc();
-			memcpy(buffer,&input,1);
+			memset((char*)buffer+i,input,1);
 		}
 		return size;
 	}
 }
 /* it works only if fd == 1(stdout) */
-int write(int fd, const void *buffer, unsigned size) {
+int 
+sys_write(int fd, const void *buffer, unsigned size) {
 	if(fd == 1) {
 		putbuf(buffer, size);
 		return size;
 	}
+}
+
+struct child_process *insert_child_procesS(pid_t pid) {
+	struct child_process *cp = (struct child_process*)malloc(sizeof(struct child_process));
+
+	cp->pid = pid;
+	cp->load = NOT_LOADED;
+	cp->wait = false;
+	list_push( &thread_current()->child_list , &cp->elem );
+
+	return cp;
 }

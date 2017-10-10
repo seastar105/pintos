@@ -5,6 +5,14 @@
 #include <list.h>
 #include <stdint.h>
 
+/* added by Jeon Hae Seong */
+struct child_process{
+	struct list_elem elem;
+	tid_t tid;
+	bool exit;
+	struct thread *child;
+};
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -102,7 +110,11 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
 
 	/* Modified by Jeon Hae Seong */
-	struct thread* parent;				/* */
+	struct thread* parent;						/* identifier of parent */
+	tid_t cur_child;							/* tid of current waiting child */
+	bool child_load;							/* value that child is loaded successful */
+	int child_status;							/* exit status of child */
+	struct list child_list;
   };
 
 /* If false (default), use round-robin scheduler.
