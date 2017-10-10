@@ -83,7 +83,7 @@ struct thread *getThread(tid_t tid) {
 		if(th->tid == tid)
 			return th;
 	}
-	th = NULL;
+	return NULL;
 }
 
 /* Initializes the threading system by transforming the code
