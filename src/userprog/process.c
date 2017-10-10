@@ -44,8 +44,22 @@ process_execute (const char *file_name)
     palloc_free_page (fn_copy);
   /* Added by Jeon Hae Seong */
   else {
-
+	  struct thread *tmp = getThread(tid);		// child_thread
+	  if(!tmp)
+		  return TID_ERROR;						// no child
+	  struct child_process *cp = (struct child_process*)malloc(sizeof(struct child_process));
+	  if(cp) { 									// malloc successs
+		  cp->tid = tmp->tid;
+		  cp->child = tmp;
+		  if(cp->parent) { 						// if parent alive push into parent's child_list
+			  list_push_back( &(cp->parent->child_list) , &(cp->elem) );
+		  }
+	  }
   }
+  struct thread *cur = thread_current();
+  // wait until child loaded
+  while(!cur->child_load);
+
   return tid;
 }
 

@@ -9,6 +9,7 @@
 struct child_process{
 	struct list_elem elem;
 	tid_t tid;
+	bool load;
 	bool exit;
 	struct thread *child;
 };

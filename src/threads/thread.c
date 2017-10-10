@@ -71,6 +71,20 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+/* 
+ * Get thread by tid
+ * search in all_list
+ */
+struct thread *getThread(tid_t tid) {
+	struct list_elem *e;
+	for(e = list_begin(&all_list);
+			e != list_end(&all_list);e = list_next(e)){
+		struct thread *th = list_entry(e, struct thread, allelem);
+		if(th->tid == tid)
+			return th;
+	}
+	th = NULL;
+}
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -185,6 +199,9 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+  /* added by JHS */
+  t->parent = thread_current();
+
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -206,11 +223,6 @@ thread_create (const char *name, int priority,
   sf->ebp = 0;
 
   intr_set_level (old_level);
-
-  /* Modified by Jeon Hae Seong */
-  t->parent = thread_current();
-  struct child_process *cp = insert_child_process(t->tid);
-  t->cp = cp;
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -477,6 +489,9 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 
+  // init child_list
+  list_init(&(t->child_list));
+  t->child_load = false;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

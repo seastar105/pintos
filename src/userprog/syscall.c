@@ -15,10 +15,10 @@ int sys_read(int fd, void* buffer, size_t size);
 int sys_write(int fd, void* buffer, size_t size);
 
 static void syscall_handler (struct intr_frame *);
-void 
+bool 
 address_validity(void *addr);							/* check if stack pointer is in user memory
 														 		 if not, terminate process, added by JeonHaeSeong*/
-void 
+bool 
 buffer_validity(void *addr, size_t n);					/* check if buffer is valid */
 
 void 
@@ -50,33 +50,47 @@ syscall_handler (struct intr_frame *f UNUSED)
 		case SYS_READ:
 			{
 				/* args[0] = fd , args[1] = buffer , args[2] = size */
-				hex_dump(0,f->esp,20,true);
+//				hex_dump(0,f->esp,20,true);
 				get_args(f,args,3);
-				buffer_validity((void*)args[1],(size_t)args[2]);
-				f->eax = read(args[0],(void*)args[1],(size_t)args[2]);
+				if(!buffer_validity((void*)args[1],(size_t)args[2])) syscall_exit(-1);
+				f->eax = sys_read(args[0],(void*)args[1],(size_t)args[2]);
 				break;
 			}
 		case SYS_WRITE:
 			{
 				/* args[0] = fd , args[1] = buffer , args[2] = size */
+				get_args(f,args,3);
+				if(!buffer_validity((void*)args[1] , (size_t)args[2])) syscall_exit(-1);
+				f->eax = sys_write(args[0],(void*)args[1],(size_t)args[2]);
+				break;
 			}
-		case SYS_SEEK:break;
+		case SYS_FIB:
+			{
+				break;
+			}
+		case SYS_SUM:
+			{
+				break;
+			}
 		default:break;
 	}
     thread_exit ();
 }
 
-void
+bool
 address_validity(void *addr) {
 	if(!is_user_vaddr(addr) || addr < UADDR_BOTTOM)
-		exit(-1);
+		return false;
+	return true;
 }
 
-void
+bool
 buffer_validity(void *addr, size_t n) {
 	int i;
 	for(i=0;i<n;i++)
-		address_validity((char*)addr+i);
+		if(!address_validity((char*)addr+i))
+			return false;
+	return true;
 }
 /* f->esp has syscall_num, +1, +2, +3 has arguments' address */
 void
@@ -102,17 +116,18 @@ void
 sys_exit(int status) {
 	struct thread *now = thread_current();
 
+
 	printf("%s: exit(%d)\n",now->name,status);
 	thread_exit();
 }
 
 pid_t
 sys_exec(const char *cmd_line) {
-	pid_t pid = process_execute(cmd_line);
 	/* process_execute -> thread_create -> kernel_thread -> start_process -> load */
 	/* Funcs above need to be modified */
 	// TO-DO : 
-	return pid;
+	buffer_validity(cmd_line);
+	return process_execute(cmd_line);
 }
 
 /* it works only if fd == 0(stdin) */
