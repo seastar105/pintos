@@ -4,15 +4,8 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-
-/* added by Jeon Hae Seong */
-struct child_process{
-	struct list_elem elem;
-	tid_t tid;
-	bool load;
-	bool exit;
-	struct thread *child;
-};
+// Added
+#include "synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -32,6 +25,13 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+/* added by Jeon Hae Seong */
+struct child_process{
+	struct list_elem elem;
+	tid_t tid;
+	struct thread *child;
+};
 
 /* A kernel thread or user process.
 
@@ -113,8 +113,9 @@ struct thread
 	/* Modified by Jeon Hae Seong */
 	struct thread* parent;						/* identifier of parent */
 	tid_t cur_child;							/* tid of current waiting child */
-	bool child_load;							/* value that child is loaded successful */
+	bool child_load_successful;					/* value that child is loaded successful */
 	int child_status;							/* exit status of child */
+	struct semaphore sema;
 	struct list child_list;
   };
 
@@ -153,5 +154,8 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+/* added by JHS */
+struct thread *getThread(tid_t tid);
 
 #endif /* threads/thread.h */

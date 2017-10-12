@@ -181,7 +181,8 @@ tid_t
 thread_create (const char *name, int priority,
                thread_func *function, void *aux) 
 {
-  struct thread *t;
+/* current thread is parent */
+  struct thread *t, *th = thread_current();
   struct kernel_thread_frame *kf;
   struct switch_entry_frame *ef;
   struct switch_threads_frame *sf;
@@ -190,6 +191,7 @@ thread_create (const char *name, int priority,
 
   ASSERT (function != NULL);
 
+  printf("thread create cur thread %s\n",th->name);
   /* Allocate thread. */
   t = palloc_get_page (PAL_ZERO);
   if (t == NULL)
@@ -477,6 +479,7 @@ is_thread (struct thread *t)
 static void
 init_thread (struct thread *t, const char *name, int priority)
 {
+	/* I don't know why, calling thread_current() here makes program die */
   ASSERT (t != NULL);
   ASSERT (PRI_MIN <= priority && priority <= PRI_MAX);
   ASSERT (name != NULL);
@@ -491,7 +494,9 @@ init_thread (struct thread *t, const char *name, int priority)
 
   // init child_list
   list_init(&(t->child_list));
-  t->child_load = false;
+  t->child_load_successful = false;
+  sema_init( &t->sema , 0 );				
+  printf("init_thread : %s\n",t->name);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

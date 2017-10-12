@@ -8,11 +8,12 @@
 
 #define UADDR_BOTTOM ((void*)0x08048000)
 
+
 void sys_exit(int status);
-void sys_halt();
-pid_t sys_exec(const char* );
+void sys_halt(void);
 int sys_read(int fd, void* buffer, size_t size);
-int sys_write(int fd, void* buffer, size_t size);
+int sys_write(int fd, const void* buffer, size_t size);
+int sys_exec(const char* cmd_line);
 
 static void syscall_handler (struct intr_frame *);
 bool 
@@ -22,7 +23,7 @@ bool
 buffer_validity(void *addr, size_t n);					/* check if buffer is valid */
 
 void 
-get_args(struct intr_frame *f, int *args, int cnt);		/* get arguments the syscall need and store at args */
+get_args(struct intr_frame *f, void **args, int cnt);		/* get arguments the syscall need and store at args */
 
 void
 syscall_init (void) 
@@ -35,36 +36,42 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-	int args[4];
+	void* args[4] = {NULL};
 	// check if pointer is valid
-	address_validity(f->esp);
+	if(!address_validity(f->esp)) sys_exit(-1);
 	switch(*(int*)(f->esp)) {
 		case SYS_HALT:
 			{
-				halt();
+				sys_halt();
 				break;
 			}
 		case SYS_EXIT:break;
-		case SYS_EXEC:break;
+		case SYS_EXEC:
+			{
+				printf("EXEC\n");
+				get_args(f,args,1);
+				f->eax = sys_exec(*(const char**)args[0]);
+				break;
+			}
 		case SYS_WAIT:break;
 		case SYS_READ:
 			{
 				/* args[0] = fd , args[1] = buffer , args[2] = size */
 //				hex_dump(0,f->esp,20,true);
 				get_args(f,args,3);
-				if(!buffer_validity((void*)args[1],(size_t)args[2])) syscall_exit(-1);
-				f->eax = sys_read(args[0],(void*)args[1],(size_t)args[2]);
+				if(!buffer_validity(args[1],*(size_t*)args[2])) sys_exit(-1);
+				f->eax = sys_read(*(int*)args[0],args[1],*(size_t*)args[2]);
 				break;
 			}
 		case SYS_WRITE:
 			{
 				/* args[0] = fd , args[1] = buffer , args[2] = size */
 				get_args(f,args,3);
-				if(!buffer_validity((void*)args[1] , (size_t)args[2])) syscall_exit(-1);
-				f->eax = sys_write(args[0],(void*)args[1],(size_t)args[2]);
+				if(!buffer_validity(args[1] , *(size_t*)args[2])) sys_exit(-1);
+				f->eax = sys_write(*(int*)args[0],args[1],*(size_t*)args[2]);
 				break;
 			}
-		case SYS_FIB:
+		case SYS_PIB:
 			{
 				break;
 			}
@@ -74,7 +81,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 			}
 		default:break;
 	}
-    thread_exit ();
+//    thread_exit ();
 }
 
 bool
@@ -92,15 +99,15 @@ buffer_validity(void *addr, size_t n) {
 			return false;
 	return true;
 }
-/* f->esp has syscall_num, +1, +2, +3 has arguments' address */
+/* f->esp has syscall_num, +1, +2, +3, +4 has arguments' address */
 void
-get_args(struct intr_frame *f, int *args, int cnt) {
+get_args(struct intr_frame *f, void **args, int cnt) {
 	int i;
-	int *ptr;
+	void *ptr = f->esp;
 	for(i=0;i<cnt;i++) {
-		ptr = (int*)f->esp + i + 1;
+		ptr = ptr+4;
 		address_validity(ptr);
-		args[i] = *ptr;
+		args[i] = ptr;
 	}
 }
 
@@ -114,21 +121,19 @@ sys_halt(void) {
 // return status to the kernel or parent
 void 
 sys_exit(int status) {
-	struct thread *now = thread_current();
-
-
-	printf("%s: exit(%d)\n",now->name,status);
+	struct thread *cur = thread_current();
+	printf("%s: exit(%d)\n",cur->name,status);
 	thread_exit();
 }
 
-pid_t
+int
 sys_exec(const char *cmd_line) {
 	/* process_execute -> thread_create -> kernel_thread -> start_process -> load */
 	/* Funcs above need to be modified */
 	// TO-DO : 
-	buffer_validity(cmd_line);
 	return process_execute(cmd_line);
 }
+
 
 /* it works only if fd == 0(stdin) */
 int 
@@ -150,15 +155,4 @@ sys_write(int fd, const void *buffer, unsigned size) {
 		putbuf(buffer, size);
 		return size;
 	}
-}
-
-struct child_process *insert_child_procesS(pid_t pid) {
-	struct child_process *cp = (struct child_process*)malloc(sizeof(struct child_process));
-
-	cp->pid = pid;
-	cp->load = NOT_LOADED;
-	cp->wait = false;
-	list_push( &thread_current()->child_list , &cp->elem );
-
-	return cp;
 }

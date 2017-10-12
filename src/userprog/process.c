@@ -28,21 +28,23 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
+	/* cur thread : parent */
   char *fn_copy;
   tid_t tid;
-
+  struct thread *th = thread_current();
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-
+  printf("process_execute cur %s\n",th->name);
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   /* Added by Jeon Hae Seong */
+  /* Insert new child into parent's child_list */
   else {
 	  struct thread *tmp = getThread(tid);		// child_thread
 	  if(!tmp)
@@ -51,15 +53,16 @@ process_execute (const char *file_name)
 	  if(cp) { 									// malloc successs
 		  cp->tid = tmp->tid;
 		  cp->child = tmp;
-		  if(cp->parent) { 						// if parent alive push into parent's child_list
-			  list_push_back( &(cp->parent->child_list) , &(cp->elem) );
+		  if(cp->child->parent) { 				// if parent alive push into parent's child_list
+			  list_push_back( &(cp->child->parent->child_list) , &(cp->elem) );
 		  }
 	  }
   }
-  struct thread *cur = thread_current();
+  struct thread* cur = thread_current();
   // wait until child loaded
-  while(!cur->child_load);
-
+  sema_down( &(cur->sema) );
+  if(!(cur->child_load_successful)) 
+	  return TID_ERROR;
   return tid;
 }
 
@@ -68,21 +71,29 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
+	/* current thread is child */
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-
+  struct thread* t = thread_current();
+  printf("start process : %s\n",t->name);
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-
+  printf("after load in start_process success test %d\n",success);
+  printf("%s\n",t->name);
   /* If load failed, quit. */
+  /* Wake up parent, and notice child's load done */
+  struct thread* cur = thread_current();
+  cur->parent->child_load_successful = success;
+  sema_up( &(cur->parent->sema) );
   palloc_free_page (file_name);
-  if (!success) 
+  if (!success) {
     thread_exit ();
+  }
   // actual start process under now
 
   /* Start the user process by simulating a return from an
@@ -234,7 +245,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofset;
   bool success = false;
   int i;
-
+  printf("load : %s\n",t->name);
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
@@ -267,7 +278,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       token=strtok_r(NULL," ",&next);
   }
   /* end of modification from Kwon Myung Joon*/
-
+  printf("After making argv %s\n",t->name);
   /* Open executable file. */
   file = filesys_open (argv[0]); //file_name -> argv[0] by Kwon Myung Joon
   if (file == NULL) 
@@ -347,7 +358,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
           break;
         }
     }
-
+  printf("load before stack %s\n",t->name);
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
@@ -371,15 +382,15 @@ load (const char *file_name, void (**eip) (void), void **esp)
       *esp = *esp - 4;
       *(void**)(*esp)=argv_address[i];
   }
-  
+  printf("test1\n");
   //argv address (double pointer)
   *esp = *esp - 4;
   *(void**)(*esp) = *esp+4; //argv points argv[0]
-  
+
   //argc
   *esp = *esp - 4;
   *(int*)(*esp)=argc;
-
+  printf("test2\n");
   //(fake) return address
   *esp = *esp - 4;
   *(int*)*esp = 0;
@@ -389,17 +400,18 @@ load (const char *file_name, void (**eip) (void), void **esp)
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
-  hex_dump(0,*esp,20,true);
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);
-
+  printf("test3\n");
   /*modified Kwon Myung Joon */
   if(argv)
       free(argv);
 
+  printf("test4\n");
   if(argv_address)
       free(argv_address);
+  printf("test5\n");
   /* end of modification*/
   return success;
 }
