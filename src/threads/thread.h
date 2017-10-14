@@ -108,15 +108,17 @@ struct thread
 #endif
 
     /* Owned by thread.c. */
-    unsigned magic;                     /* Detects stack overflow. */
-
 	/* Modified by Jeon Hae Seong */
 	struct thread* parent;						/* identifier of parent */
 	tid_t cur_child;							/* tid of current waiting child */
-	bool child_load_successful;					/* value that child is loaded successful */
+	bool child_load_successful;					/* value that child is loaded successful */ //KMJ: really need this???
 	int child_status;							/* exit status of child */
-	struct semaphore sema;
+	struct semaphore sema; //KMJ: need seperate sema
 	struct list child_list;
+    
+
+    //Kwon Myung Joon: magic must be located at the bottem - by pintos manual.
+    unsigned magic;                     /* Detects stack overflow. */
   };
 
 /* If false (default), use round-robin scheduler.
