@@ -106,19 +106,19 @@ sys_halt(void) {
 // return status to the kernel or parent
 void 
 sys_exit(int status) {
-	// written by Kwon Myung Joon
+    // written by Kwon Myung Joon
 	struct thread *cur = thread_current();
-	cur->parent->child_status = status; // set child exit status in parent thread
-
-
-	// delete this thread from parent->child_list
-	struct list_elem* e;
-	for(e=list_begin(&(cur->parent->child_list));e != list_end(&(cur->parent->child_list));e=list_next(e)) {
-		if(cur->parent->cur_child == cur->tid ) {
-			list_remove(e);
-			break;
-		}
-	}
+    cur->parent->child_status = status; // set child exit status in parent thread
+        
+    //delete this thread from parent->child_list
+    struct list_elem * e;
+    for(e=list_begin(&(cur->parent->child_list)); e != list_end(&(cur->parent->child_list)); e=list_next(e))
+    {
+        if( cur->parent->cur_child == cur->tid ){
+            list_remove(e);
+            break;
+        }
+    }
 	printf("%s: exit(%d)\n",cur->name,status);
 	thread_exit();
 }
