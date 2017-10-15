@@ -1,26 +1,26 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
-#include <string.h>
-#include "threads/vaddr.h"
-#include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/interrupt.h"
 
+
+#include <string.h>
+#include "devices/shutdown.h"
+#include "devices/input.h"
+#include "lib/user/syscall.h"
+#include "userprog/exception.h"
+#include "userprog/process.h"
 #define UADDR_BOTTOM ((void*)0x08048000)
 
 
-void sys_exit(int status);
 void sys_halt(void);
 int sys_read(int fd, void* buffer, size_t size);
 int sys_write(int fd, const void* buffer, size_t size);
-int sys_exec(const char* cmd_line);
+pid_t sys_exec(const char* cmd_line);
+int sys_wait(pid_t pid);
 
 static void syscall_handler (struct intr_frame *);
-bool 
-address_validity(void *addr);							/* check if stack pointer is in user memory
-														 		 if not, terminate process, added by JeonHaeSeong*/
-bool 
-buffer_validity(void *addr, size_t n);					/* check if buffer is valid */
 
 void 
 get_args(struct intr_frame *f, void **args, int cnt);		/* get arguments the syscall need and store at args */
@@ -84,21 +84,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 //    thread_exit ();
 }
 
-bool
-address_validity(void *addr) {
-	if(!is_user_vaddr(addr) || addr < UADDR_BOTTOM)
-		return false;
-	return true;
-}
-
-bool
-buffer_validity(void *addr, size_t n) {
-	int i;
-	for(i=0;i<n;i++)
-		if(!address_validity((char*)addr+i))
-			return false;
-	return true;
-}
 /* f->esp has syscall_num, +1, +2, +3, +4 has arguments' address */
 void
 get_args(struct intr_frame *f, void **args, int cnt) {
@@ -121,12 +106,24 @@ sys_halt(void) {
 // return status to the kernel or parent
 void 
 sys_exit(int status) {
+	// written by Kwon Myung Joon
 	struct thread *cur = thread_current();
+	cur->parent->child_status = status; // set child exit status in parent thread
+
+
+	// delete this thread from parent->child_list
+	struct list_elem* e;
+	for(e=list_begin(&(cur->parent->child_list));e != list_end(&(cur->parent->child_list));e=list_next(e)) {
+		if(cur->parent->cur_child == cur->tid ) {
+			list_remove(e);
+			break;
+		}
+	}
 	printf("%s: exit(%d)\n",cur->name,status);
 	thread_exit();
 }
 
-int
+pid_t
 sys_exec(const char *cmd_line) {
 	/* process_execute -> thread_create -> kernel_thread -> start_process -> load */
 	/* Funcs above need to be modified */
@@ -134,7 +131,10 @@ sys_exec(const char *cmd_line) {
 	return process_execute(cmd_line);
 }
 
-
+int
+sys_wait(pid_t pid) {
+	return process_wait(pid);
+}
 /* it works only if fd == 0(stdin) */
 int 
 sys_read(int fd, void *buffer, unsigned size) {

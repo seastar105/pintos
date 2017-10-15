@@ -2,8 +2,11 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include "userprog/gdt.h"
+#include "threads/vaddr.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "userprog/pagedir.h"
+#include "userprog/syscall.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -148,6 +151,8 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+
+
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
@@ -159,3 +164,19 @@ page_fault (struct intr_frame *f)
   kill (f);
 }
 
+bool address_validity(void *addr) {
+	if(!addr) sys_exit(-1);
+	if(is_user_vaddr(addr)){
+		if(pagedir_get_page(thread_current()->pagedir, addr))
+			return true;
+	}
+	sys_exit(-1);
+	return false;
+}
+
+bool buffer_validity(void *addr, size_t size) {
+	int i;
+	for(i=0;i<size;i++) {
+		address_validity(addr+i);
+	}
+}

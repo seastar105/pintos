@@ -17,7 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-
+#include "threads/malloc.h"
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -83,7 +83,8 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-  printf("after load in start_process success test %d\n",success);
+  printf("after load in start_process success test %s : %d\n",t->name,success);
+  printf("who's parent? %s , %d\n",t->parent->name, t->parent->tid);
   printf("%s\n",t->name);
   /* If load failed, quit. */
   /* Wake up parent, and notice child's load done */
@@ -103,6 +104,7 @@ start_process (void *file_name_)
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
+  printf("test1\n");
   NOT_REACHED ();
 }
 
@@ -118,8 +120,26 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-    while(1); // Kwon Myung Joon
-  return -1;
+	/* modified by Jeon Hae Seong */
+	/* current process is child */
+	struct thread *cur = thread_current();
+	struct child_process *cp;
+	struct list_elem *e;
+	bool found = false;
+	printf("Cur process in process_wait %s\n",cur->name);
+	if(child_tid == TID_ERROR) return -1;
+	for(e = list_begin( &(cur->child_list) );
+			e != list_end( &(cur->child_list) );e = list_next(e) ) {
+		struct child_process *cp = list_entry(e,struct child_process,elem);
+		if(cp->tid == child_tid) {
+			found = true;
+			break;
+		}
+	}
+	if(!found) return -1;
+	cur->cur_child = child_tid;
+	sema_down( &(cur->sema) );
+	return cur->child_status;
 }
 
 /* Free the current process's resources. */
@@ -245,7 +265,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofset;
   bool success = false;
   int i;
-  printf("load : %s\n",t->name);
+  printf("loading process : %s\n",t->name);
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
@@ -278,8 +298,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
       token=strtok_r(NULL," ",&next);
   }
   /* end of modification from Kwon Myung Joon*/
-  printf("After making argv %s\n",t->name);
   /* Open executable file. */
+  printf("%s\n",argv[0]);
+  printf("%s\n",file_name);
   file = filesys_open (argv[0]); //file_name -> argv[0] by Kwon Myung Joon
   if (file == NULL) 
     {
@@ -287,6 +308,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       goto done; 
     }
 
+  printf("309\n");
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -358,7 +380,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
           break;
         }
     }
-  printf("load before stack %s\n",t->name);
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
@@ -382,7 +403,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
       *esp = *esp - 4;
       *(void**)(*esp)=argv_address[i];
   }
-  printf("test1\n");
   //argv address (double pointer)
   *esp = *esp - 4;
   *(void**)(*esp) = *esp+4; //argv points argv[0]
@@ -390,7 +410,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   //argc
   *esp = *esp - 4;
   *(int*)(*esp)=argc;
-  printf("test2\n");
   //(fake) return address
   *esp = *esp - 4;
   *(int*)*esp = 0;
@@ -403,16 +422,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);
-  printf("test3\n");
   /*modified Kwon Myung Joon */
   if(argv)
       free(argv);
 
-  printf("test4\n");
   if(argv_address)
       free(argv_address);
-  printf("test5\n");
   /* end of modification*/
+  hex_dump(*esp,*esp,64,true);
   return success;
 }
 /* load() helpers. */
