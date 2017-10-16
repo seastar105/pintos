@@ -393,6 +393,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     *esp = *esp - (len + 1); //for NULL sentinel
     argv_address[i]=*esp;
     strlcpy((char*)*esp,argv[i],len+1);
+	printf("line : %d %s\n",__LINE__,argv[i]);
   }
   //word-align
   *esp = (*esp) - ((int)(*esp)%4);
@@ -413,6 +414,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   //(fake) return address
   *esp = *esp - 4;
   *(int*)*esp = 0;
+  hex_dump((int*)*esp,*esp,64,true);
   /* end of modification by Kwon Myung Joon */
   
   /* Start address. */
@@ -429,7 +431,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if(argv_address)
       free(argv_address);
   /* end of modification*/
-  hex_dump(*esp,*esp,64,true);
   return success;
 }
 /* load() helpers. */

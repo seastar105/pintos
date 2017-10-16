@@ -101,8 +101,8 @@ get_args(struct intr_frame *f, void **args, int cnt) {
 	void *ptr = f->esp;
 	for(i=0;i<cnt;i++) {
 		ptr = ptr+4;
-		address_validity(ptr);
 		args[i] = ptr;
+		address_validity(args[i]);
 	}
 }
 
