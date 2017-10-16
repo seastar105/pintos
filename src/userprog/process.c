@@ -299,8 +299,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   }
   /* end of modification from Kwon Myung Joon*/
   /* Open executable file. */
-  printf("%s\n",argv[0]);
-  printf("%s\n",file_name);
   file = filesys_open (argv[0]); //file_name -> argv[0] by Kwon Myung Joon
   if (file == NULL) 
     {
@@ -385,38 +383,47 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
 
   /* start modification by Kwon Myung Joon */
+  void *tmp = *esp;
+  int cnt=0;
   //for future reference- *esp: esp address, **esp: esp value
   char ** argv_address = malloc(argc * sizeof(char*));
   //argv[i] data
   for(i=argc-1;i>=0;i--){
     int len = strlen(argv[i]);
-    *esp = *esp - (len + 1); //for NULL sentinel
-    argv_address[i]=*esp;
-    strlcpy((char*)*esp,argv[i],len+1);
-	printf("line : %d %s\n",__LINE__,argv[i]);
+	cnt += len;
+    tmp = tmp - (len + 1); //for NULL sentinel
+    memcpy(tmp,argv[i],len);
+	argv_address[i] = tmp;
+	printf("%s\n",argv[i]);
   }
   //word-align
-  *esp = (*esp) - ((int)(*esp)%4);
-  //argv[i] address
-  *esp = *esp - 4;
-  * (int*)(*esp) = 0; // argv[argc]=0
-  for(i=argc-1;i>=0;--i){
-      *esp = *esp - 4;
-      *(void**)(*esp)=argv_address[i];
+  cnt = 4 - cnt%4;
+  while(cnt--) {
+	  tmp -= 1;
+	  memset(tmp,0,1);
   }
+  //argv[i] address
+  tmp -= 4;
+  memset(tmp,0,4);
+
+  for(i=argc-1;i>=0;--i){
+      tmp = tmp-4;
+      memcpy(tmp , &(argv_address[i]) , 4);
+  }
+  argv_address[argc] = tmp;
   //argv address (double pointer)
-  *esp = *esp - 4;
-  *(void**)(*esp) = *esp+4; //argv points argv[0]
+  tmp = tmp-4;
+  memcpy(tmp,&(argv_address[argc]),4);
 
   //argc
-  *esp = *esp - 4;
-  *(int*)(*esp)=argc;
+  tmp -= 4;
+  memcpy(tmp,&argc,4);
   //(fake) return address
-  *esp = *esp - 4;
-  *(int*)*esp = 0;
-  hex_dump((int*)*esp,*esp,64,true);
+  tmp -= 4;
+  memset(tmp , 0 , 4);
+  hex_dump((int*)*esp,*esp,*esp - tmp,true);
   /* end of modification by Kwon Myung Joon */
-  
+  *esp = tmp;
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
