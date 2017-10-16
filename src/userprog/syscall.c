@@ -45,7 +45,12 @@ syscall_handler (struct intr_frame *f UNUSED)
 				sys_halt();
 				break;
 			}
-		case SYS_EXIT:break;
+		case SYS_EXIT:
+			{
+				get_args(f,args,1);
+				sys_exit(*(int*)args[0]);
+				break;
+			}
 		case SYS_EXEC:
 			{
 				printf("EXEC\n");
@@ -53,7 +58,12 @@ syscall_handler (struct intr_frame *f UNUSED)
 				f->eax = sys_exec(*(const char**)args[0]);
 				break;
 			}
-		case SYS_WAIT:break;
+		case SYS_WAIT:
+			{
+				get_args(f,args,1);
+				f->eax=sys_wait(*(pid_t*)args[0]);
+				break;
+			}
 		case SYS_READ:
 			{
 				/* args[0] = fd , args[1] = buffer , args[2] = size */
@@ -119,6 +129,7 @@ sys_exit(int status) {
             break;
         }
     }
+	sema_up( &(cur->parent->sema) );			// added by JHS
 	printf("%s: exit(%d)\n",cur->name,status);
 	thread_exit();
 }
