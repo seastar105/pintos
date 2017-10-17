@@ -53,7 +53,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 			}
 		case SYS_EXEC:
 			{
-				//printf("EXEC\n");
+				printf("EXEC\n");
 				get_args(f,args,1);
 				f->eax = sys_exec(*(const char**)args[0]);
 				break;
@@ -69,16 +69,16 @@ syscall_handler (struct intr_frame *f UNUSED)
 				/* args[0] = fd , args[1] = buffer , args[2] = size */
 //				hex_dump(0,f->esp,20,true);
 				get_args(f,args,3);
-				if(!buffer_validity(*(const char**)args[1],*(size_t*)args[2])) sys_exit(-1);
-				f->eax = sys_read(*(int*)args[0],*(const char**)args[1],*(size_t*)args[2]);
+				if(!buffer_validity(args[1],*(size_t*)args[2])) sys_exit(-1);
+				f->eax = sys_read(*(int*)args[0],args[1],*(size_t*)args[2]);
 				break;
 			}
 		case SYS_WRITE:
 			{
 				/* args[0] = fd , args[1] = buffer , args[2] = size */
 				get_args(f,args,3);
-				if(!buffer_validity(*(const char**)args[1] , *(size_t*)args[2])) sys_exit(-1);
-				f->eax = sys_write(*(int*)args[0],*(const char**)args[1],*(size_t*)args[2]);
+				if(!buffer_validity(args[1] , *(size_t*)args[2])) sys_exit(-1);
+				f->eax = sys_write(*(int*)args[0],args[1],*(size_t*)args[2]);
 				break;
 			}
 		case SYS_PIB:
@@ -162,11 +162,8 @@ sys_read(int fd, void *buffer, unsigned size) {
 /* it works only if fd == 1(stdout) */
 int 
 sys_write(int fd, const void *buffer, unsigned size) {
-	unsigned i;
 	if(fd == 1) {
-		for(i=0;i<size;i++)
-			if(*(char*)(buffer+i) == '\0') break;
-		putbuf(buffer, i);
+		putbuf(buffer, size);
 		return size;
 	}
 }

@@ -188,17 +188,19 @@ thread_create (const char *name, int priority,
   struct switch_threads_frame *sf;
   tid_t tid;
   enum intr_level old_level;
+  char *token, *ptr;
 
   ASSERT (function != NULL);
 
-  printf("thread create cur thread %s\n",th->name);
+  //printf("thread create cur thread %s\n",th->name);
   /* Allocate thread. */
   t = palloc_get_page (PAL_ZERO);
   if (t == NULL)
     return TID_ERROR;
 
   /* Initialize thread. */
-  init_thread (t, name, priority);
+  token = strtok_r(name," ",&ptr);
+  init_thread (t, token, priority);
   tid = t->tid = allocate_tid ();
 
   /* added by JHS */
@@ -496,7 +498,7 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&(t->child_list));
   t->child_load_successful = false;
   sema_init( &t->sema , 0 );				
-  printf("init_thread : %s\n",t->name);
+  //printf("init_thread : %s\n",t->name);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
