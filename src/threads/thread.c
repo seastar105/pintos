@@ -189,23 +189,26 @@ thread_create (const char *name, int priority,
   tid_t tid;
   enum intr_level old_level;
   char *token, *ptr;
-
+  char *safe = (char*)malloc(sizeof(char)*(strlen(name)+1));
   ASSERT (function != NULL);
 
-  //printf("thread create cur thread %s\n",th->name);
+//  printf("thread create cur thread %s\n",th->name);
   /* Allocate thread. */
   t = palloc_get_page (PAL_ZERO);
+//  printf("page done?\n");
   if (t == NULL)
     return TID_ERROR;
-
+//  printf("page safe?\n");
   /* Initialize thread. */
-  token = strtok_r(name," ",&ptr);
+  strlcpy(safe,name,strlen(name)+1);
+  token=strtok_r(safe," ",&ptr);
+ // printf("token in create?\n");
   init_thread (t, token, priority);
   tid = t->tid = allocate_tid ();
-
+//  printf("tid done?\n");
   /* added by JHS */
   t->parent = thread_current();
-
+//  printf("connect dont?\n");
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -217,6 +220,7 @@ thread_create (const char *name, int priority,
   kf->function = function;
   kf->aux = aux;
 
+//  printf("before start process\n");
   /* Stack frame for switch_entry(). */
   ef = alloc_frame (t, sizeof *ef);
   ef->eip = (void (*) (void)) kernel_thread;
@@ -230,6 +234,8 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+
+//  thread_yield();
 
   return tid;
 }

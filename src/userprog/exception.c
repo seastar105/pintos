@@ -151,6 +151,7 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 #ifdef USERPROG
+  printf("%s\n",thread_current()->name);
   sys_exit(-1);
 #else
   /* To implement virtual memory, delete the rest of the function
@@ -166,18 +167,16 @@ page_fault (struct intr_frame *f)
 }
 
 bool address_validity(void *addr) {
-	if(!addr) sys_exit(-1);
-	if(is_user_vaddr(addr)){
-		if(pagedir_get_page(thread_current()->pagedir, addr))
-			return true;
-	}
-	sys_exit(-1);
-	return false;
+	if(!addr) return false;
+	if(!is_user_vaddr(addr)) return false;
+	if(!pagedir_get_page(thread_current()->pagedir, addr)) return false;
+	return true;
 }
 
 bool buffer_validity(void *addr, size_t size) {
 	int i;
 	for(i=0;i<size;i++) {
-		address_validity(addr+i);
+		if(!address_validity(addr+i)) return false;
 	}
+	return true;
 }

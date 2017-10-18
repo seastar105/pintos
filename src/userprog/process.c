@@ -38,26 +38,12 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
- // printf("process_execute cur %s\n",th->name);
+//  printf("%s makes child\n",th->name);
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+//  printf("%s made child\n",th->name);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
-  /* Added by Jeon Hae Seong */
-  /* Insert new child into parent's child_list */
-  else {
-	  struct thread *tmp = getThread(tid);		// child_thread
-	  if(!tmp)
-		  return TID_ERROR;						// no child
-	  struct child_process *cp = (struct child_process*)malloc(sizeof(struct child_process));
-	  if(cp) { 									// malloc successs
-		  cp->tid = tmp->tid;
-		  cp->child = tmp;
-		  if(cp->child->parent) { 				// if parent alive push into parent's child_list
-			  list_push_back( &(cp->child->parent->child_list) , &(cp->elem) );
-		  }
-	  }
-  }
   struct thread* cur = thread_current();
   // wait until child loaded
   sema_down( &(cur->sema) );
@@ -82,13 +68,17 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+  struct thread *parent = thread_current() ->parent;
+  struct child_process *cp = (struct child_process*)malloc(sizeof(struct child_process));
+  struct list_elem *e;
+  cp->child = thread_current();
+  cp->tid = thread_current()->tid;
+  list_push_back( &(cp->child->parent->child_list) , &(cp->elem));
   success = load (file_name, &if_.eip, &if_.esp);
-//  printf("after load in start_process success test %s : %d\n",t->name,success);
-//  printf("who's parent? %s , %d\n",t->parent->name, t->parent->tid);
-//  printf("%s\n",t->name);
   /* If load failed, quit. */
   /* Wake up parent, and notice child's load done */
   struct thread* cur = thread_current();
+
   cur->parent->child_load_successful = success;
   sema_up( &(cur->parent->sema) );
   palloc_free_page (file_name);
@@ -118,7 +108,7 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
 	/* modified by Jeon Hae Seong */
 	/* current process is child */
@@ -130,7 +120,7 @@ process_wait (tid_t child_tid UNUSED)
 	if(child_tid == TID_ERROR) return -1;
 	for(e = list_begin( &(cur->child_list) );
 			e != list_end( &(cur->child_list) );e = list_next(e) ) {
-		struct child_process *cp = list_entry(e,struct child_process,elem);
+		cp = list_entry(e,struct child_process,elem);
 		if(cp->tid == child_tid) {
 			found = true;
 			break;
@@ -415,7 +405,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
 	memcpy(cur, &zero, sizeof(void(*)));
 	//hex_dump((int)cur,cur,*esp-cur,true);
 	*esp = cur;
-
 	/* Start address. */
 	*eip = (void (*) (void)) ehdr.e_entry;
 	success = true;
