@@ -151,7 +151,7 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 #ifdef USERPROG
-  printf("%s\n",thread_current()->name);
+//  printf("%s\n",thread_current()->name);
   sys_exit(-1);
 #else
   /* To implement virtual memory, delete the rest of the function
