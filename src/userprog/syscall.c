@@ -19,6 +19,9 @@ int sys_read(int fd, void* buffer, size_t size);
 int sys_write(int fd, const void* buffer, size_t size);
 pid_t sys_exec(const char* cmd_line);
 int sys_wait(pid_t pid);
+int pibonacci(int n);
+int sum_of_four_integers(int a,int b,int c,int d);
+
 
 static void syscall_handler (struct intr_frame *);
 
@@ -80,10 +83,14 @@ syscall_handler (struct intr_frame *f UNUSED)
 			}
 		case SYS_PIB:
 			{
+				get_args(f,args,1);
+				f->eax = pibonacci(*(int*)args[0]);
 				break;
 			}
 		case SYS_SUM:
 			{
+				get_args(f,args,4);
+				f->eax = sum_of_four_integers(*(int*)args[0],*(int*)args[1],*(int*)args[2],*(int*)args[3]);
 				break;
 			}
 		default:break;
@@ -175,4 +182,22 @@ sys_write(int fd, const void *buffer, unsigned size) {
 		putbuf(buffer, i);
 		return size;
 	}
+}
+
+int
+pibonacci(int n) {
+	int prev = 0, now = 1, temp, i;
+
+	for(i=1;i<n;i++) {
+		temp = prev + now;
+		prev = now;
+		now = temp;
+	}
+
+	return now;
+}
+
+int
+sum_of_four_integers(int a, int b, int c, int d) {
+	return a+b+c+d;
 }
