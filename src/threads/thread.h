@@ -165,5 +165,7 @@ int thread_get_load_avg (void);
 
 /* added by JHS */
 struct thread *getThread(tid_t tid);
+struct file* searchFileList(struct list *file_list, int fd);
+
 
 #endif /* threads/thread.h */

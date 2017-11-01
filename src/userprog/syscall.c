@@ -31,8 +31,6 @@ int sys_filesize(int fd);
 void sys_seek(int fd, unsigned position);
 unsigned sys_tell(int fd);
 void sys_close(int fd);
-struct file* searchFileList(struct list file_list, int fd);
-
 static void syscall_handler (struct intr_frame *);
 
 void 
@@ -171,6 +169,7 @@ sys_halt(void) {
 
 
 // return status to the kernel or parent
+// need to close file_list
 void 
 sys_exit(int status) {
     // written by Kwon Myung Joon
@@ -178,19 +177,21 @@ sys_exit(int status) {
     cur->parent->child_status = status; // set child exit status in parent thread
 	// need to yield while parent's cur_child is not cur_thread
 	struct thread *parent = cur->parent;
-	if(parent)while((parent->cur_child != cur->tid) || (parent->status != THREAD_BLOCKED)) thread_yield();
-    //delete this thread from parent->child_list
-    struct list_elem * e;
-    for(e=list_begin(&(cur->parent->child_list)); e != list_end(&(cur->parent->child_list)); e=list_next(e))
-    {
-		struct child_process *cp = list_entry(e,struct child_process, elem);
-        if( cp->tid == cur->tid ){
-            list_remove(&(cp->elem));
-			free(cp);
-            break;
-        }
-    }
-	sema_up( &(cur->parent->sema) );			// added by JHS
+	if(parent){
+		while((parent->cur_child != cur->tid) || (parent->status != THREAD_BLOCKED)) thread_yield();
+	    //delete this thread from parent->child_list
+	    struct list_elem * e;
+	    for(e=list_begin(&(cur->parent->child_list)); e != list_end(&(cur->parent->child_list)); e=list_next(e))
+    	{
+			struct child_process *cp = list_entry(e,struct child_process, elem);
+	        if( cp->tid == cur->tid ){
+            	list_remove(&(cp->elem));
+				free(cp);
+        	    break;
+    	    }
+	    }
+		sema_up( &(cur->parent->sema) );			// added by JHS
+	}
 	printf("%s: exit(%d)\n",cur->name,status);
 	thread_exit();
 }
@@ -220,7 +221,15 @@ sys_read(int fd, void *buffer, unsigned size) {
 			input = input_getc();
 			memset((char*)buffer+i,input,1);
 		}
-		return size;
+		return i;
+	}
+	else if(fd == 1)
+		return -1;
+	else {
+		struct my_file *tmp = searchFileList(&(thread_current()->file_list),fd);
+		if(!tmp)
+			return -1;
+		return file_read(tmp->file,buffer,size);
 	}
 }
 /* it works only if fd == 1(stdout) */
@@ -228,11 +237,19 @@ int
 sys_write(int fd, const void *buffer, unsigned size) {
 	unsigned i;
 	if(!address_validity(buffer)) sys_exit(-1);
-	if(fd == 1) {
+	if(fd == 0)
+		return -1;
+	else if(fd == 1) {
 		for(i=0;i<size;i++)
 			if(*(char*)(buffer+i) == '\0') break;
 		putbuf(buffer, i);
-		return size;
+		return i;
+	}
+	else {
+		struct my_file *tmp = searchFileList(&(thread_current()->file_list),fd);
+		if(!tmp)
+			return -1;
+		return file_write(tmp->file, buffer, size);
 	}
 }
 
@@ -269,35 +286,52 @@ bool sys_remove(const char *file) {
 int sys_open(const char *file) {
 	if(!address_validity(file)) 
 		sys_exit(-1);
-	filesys_open(file);
+	int cur = 2;
+	struct file* fp = filesys_open(file);
+	if(!fp)
+		return -1;
+	struct list_elem* e;
+	struct my_file *new = (struct my_file*)malloc(sizeof(struct my_file));
+	struct list *l = &(thread_current()->file_list);
+	// get empty fd, 0 and 1 are reserved
+	for(e=list_begin(l);e!=list_end(l);e=list_next(e)){
+		struct my_file *tmp = list_entry(e,struct my_file,elem);
+		if(tmp->fd == cur) {
+			cur++;continue;
+		}
+		break;
+	}
+	new->fd = cur;
+	new->file = fp;
+	list_push_back(l,&(new->elem));
+	return cur;
 }
 // seek, tell want struct file pointer, So need to find file related to fd
 void sys_seek(int fd, unsigned pos) {
+	struct my_file *tmp = searchFileList(&(thread_current()->file_list),fd);
+	if(!tmp)
+		return -1;
+	file_seek(tmp->file,pos);
 //	file_seek(fd,pos);
 }
 
 unsigned sys_tell(int fd) {
+	struct my_file *tmp = searchFileList(&(thread_current()->file_list),fd);
+	if(!tmp)
+		return -1;
+	return file_tell(tmp->file);
 //	return file_tell(fd);
 }
 
 int sys_filesize(int fd) {
-
+	struct my_file *tmp = searchFileList(&(thread_current()->file_list),fd);
+	if(!tmp)
+		return -1;
+	return file_length(tmp->file);
 }
 
 void sys_close(int fd) {
 
 }
 
-struct file* searchFileList(struct list file_list, int fd) {
-	struct my_file *tmp;
-	struct list_elem *e;
-	for(e=list_begin(&file_list);e != list_end(&file_list);
-			e = list_next(e)) {
-		tmp = list_entry(e,struct my_file,elem);
-		if(tmp->fd == fd) {
-			return tmp->file;
-		}
-	}
 
-	return NULL;
-}
