@@ -5,8 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 // Added
-#include "synch.h"
-
+#include "threads/synch.h"
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -31,6 +30,12 @@ struct child_process{
 	struct list_elem elem;
 	tid_t tid;
 	struct thread *child;
+};
+
+struct my_file{
+	struct list_elem elem;
+	int fd;
+	struct file *file;
 };
 
 /* A kernel thread or user process.
@@ -115,6 +120,7 @@ struct thread
 	int child_status;							/* exit status of child */
 	struct semaphore sema; // KMJ: need seperate sema
 	struct list child_list;
+	struct list file_list;						/* current thread open file list */
 
 	//Kwon Myung Joon: magic mus be located at the bottem - by pintos manual
     unsigned magic;                     /* Detects stack overflow. */

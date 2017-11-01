@@ -502,6 +502,8 @@ init_thread (struct thread *t, const char *name, int priority)
 
   // init child_list
   list_init(&(t->child_list));
+  // init file_list
+  list_init(*(t->file_list));
   t->child_load_successful = false;
   sema_init( &t->sema , 0 );				
   //printf("init_thread : %s\n",t->name);

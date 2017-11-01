@@ -11,6 +11,8 @@
 #include "lib/user/syscall.h"
 #include "userprog/exception.h"
 #include "userprog/process.h"
+#include "filesys/file.h"
+#include "filesys/filesys.h"
 #define UADDR_BOTTOM ((void*)0x08048000)
 
 
@@ -21,7 +23,15 @@ pid_t sys_exec(const char* cmd_line);
 int sys_wait(pid_t pid);
 int pibonacci(int n);
 int sum_of_four_integers(int a,int b,int c,int d);
-
+// Project 2-2
+bool sys_create(const char *file, unsigned initial_size);
+bool sys_remove(const char *file);
+int sys_open(const char *file);
+int sys_filesize(int fd);
+void sys_seek(int fd, unsigned position);
+unsigned sys_tell(int fd);
+void sys_close(int fd);
+struct file* searchFileList(struct list file_list, int fd);
 
 static void syscall_handler (struct intr_frame *);
 
@@ -93,6 +103,48 @@ syscall_handler (struct intr_frame *f UNUSED)
 				f->eax = sum_of_four_integers(*(int*)args[0],*(int*)args[1],*(int*)args[2],*(int*)args[3]);
 				break;
 			}
+		case SYS_CREATE:
+			{
+				get_args(f,args,2);
+				f->eax = sys_create(*(const char**)args[0],*(unsigned*)args[1]);
+				break;
+			}
+		case SYS_REMOVE:
+			{
+				get_args(f,args,1);
+				f->eax = sys_remove(*(const char**)args[0]);
+				break;
+			}
+		case SYS_OPEN:
+			{
+				get_args(f,args,1);
+				f->eax = sys_open(*(const char**)args[0]);
+				break;
+			}
+		case SYS_FILESIZE:
+			{
+				get_args(f,args,1);
+				f->eax = sys_filesize(*(int*)args[0]);
+				break;
+			}
+		case SYS_SEEK:
+			{
+				get_args(f,args,2);
+				sys_seek(*(int*)args[0],*(unsigned*)args[1]);
+				break;
+			}
+		case SYS_TELL:
+			{
+				get_args(f,args,1);
+				f->eax = sys_tell(*(int*)args[0]);
+				break;
+			}
+		case SYS_CLOSE:
+			{
+				get_args(f,args,1);
+				sys_close(*(int*)args[0]);
+				break;
+			}
 		default:break;
 	}
 //    thread_exit ();
@@ -126,7 +178,7 @@ sys_exit(int status) {
     cur->parent->child_status = status; // set child exit status in parent thread
 	// need to yield while parent's cur_child is not cur_thread
 	struct thread *parent = cur->parent;
-	while((parent->cur_child != cur->tid) || (parent->status != THREAD_BLOCKED)) thread_yield();
+	if(parent)while((parent->cur_child != cur->tid) || (parent->status != THREAD_BLOCKED)) thread_yield();
     //delete this thread from parent->child_list
     struct list_elem * e;
     for(e=list_begin(&(cur->parent->child_list)); e != list_end(&(cur->parent->child_list)); e=list_next(e))
@@ -200,4 +252,52 @@ pibonacci(int n) {
 int
 sum_of_four_integers(int a, int b, int c, int d) {
 	return a+b+c+d;
+}
+
+bool sys_create(const char *file,unsigned initial_size) {
+	if(!address_validity(file))
+		sys_exit(-1);
+	return filesys_create(file,initial_size);
+}
+
+bool sys_remove(const char *file) {
+	if(!address_validity(file))
+		sys_exit(-1);
+	return filesys_remove(file);
+}
+
+int sys_open(const char *file) {
+	if(!address_validity(file)) 
+		sys_exit(-1);
+	filesys_open(file);
+}
+// seek, tell want struct file pointer, So need to find file related to fd
+void sys_seek(int fd, unsigned pos) {
+//	file_seek(fd,pos);
+}
+
+unsigned sys_tell(int fd) {
+//	return file_tell(fd);
+}
+
+int sys_filesize(int fd) {
+
+}
+
+void sys_close(int fd) {
+
+}
+
+struct file* searchFileList(struct list file_list, int fd) {
+	struct my_file *tmp;
+	struct list_elem *e;
+	for(e=list_begin(&file_list);e != list_end(&file_list);
+			e = list_next(e)) {
+		tmp = list_entry(e,struct my_file,elem);
+		if(tmp->fd == fd) {
+			return tmp->file;
+		}
+	}
+
+	return NULL;
 }
