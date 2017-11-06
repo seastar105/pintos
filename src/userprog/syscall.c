@@ -50,6 +50,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	void* args[4] = {NULL};
 	// check if pointer is valid
 	if(!address_validity(f->esp)) sys_exit(-1);
+//	printf("SYSCALL_HANDLER %d\n",*(int*)f->esp);
 	switch(*(int*)(f->esp)) {
 		case SYS_HALT:
 			{
@@ -178,19 +179,30 @@ sys_exit(int status) {
 	struct thread *parent = cur->parent;
 	while((parent->cur_child != cur->tid) || (parent->status != THREAD_BLOCKED)) thread_yield();
 	// delete cur thread's file_list
+	struct list_elem *e;
+	
+	for(e=list_begin(&(cur->file_list));e!=list_end(&(cur->file_list));){
+		struct my_file *tmp = list_entry(e,struct my_file,elem);
+		e = list_next(e);
+		if(!tmp) continue;
+		file_close(tmp->file);
+		list_remove(&(tmp->elem));
+		free(tmp);
+	}
 
     // delete this thread from parent->child_list
 	parent->child_status = status;
-    struct list_elem * e;
-    for(e=list_begin(&(cur->parent->child_list)); e != list_end(&(cur->parent->child_list)); e=list_next(e))
+    for(e=list_begin(&(cur->parent->child_list)); e != list_end(&(cur->parent->child_list)); )
    	{
 		struct child_process *cp = list_entry(e,struct child_process, elem);
+		e = list_next(e);
         if( cp->tid == cur->tid ){
            	list_remove(&(cp->elem));
 			free(cp);
        	    break;
    	    }
     }
+//	printf("Sema Up in sys_exit\n");
 	sema_up( &(cur->parent->sema) );			// added by JHS
 	printf("%s: exit(%d)\n",cur->name,status);
 	thread_exit();
@@ -301,6 +313,7 @@ int sys_open(const char *file) {
 		}
 		break;
 	}
+//	printf("New FD : %d\n",cur);
 	new->fd = cur;
 	new->file = fp;
 	list_push_back(l,&(new->elem));
@@ -331,5 +344,10 @@ int sys_filesize(int fd) {
 }
 
 void sys_close(int fd) {
-
+	struct my_file *tmp = searchFileList(&(thread_current()->file_list),fd);
+	if(!tmp)
+		return ;
+	file_close(tmp->file);
+	list_remove(&(tmp->elem));
+	free(tmp);
 }

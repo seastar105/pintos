@@ -61,26 +61,29 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-  struct thread* t = thread_current();
   //printf("start process : %s\n",t->name);
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+  // insert child process into parent's child_list
   struct thread *parent = thread_current() ->parent;
   struct child_process *cp = (struct child_process*)malloc(sizeof(struct child_process));
   struct list_elem *e;
   cp->child = thread_current();
   cp->tid = thread_current()->tid;
   list_push_back( &(cp->child->parent->child_list) , &(cp->elem));
+
   success = load (file_name, &if_.eip, &if_.esp);
-  /* If load failed, quit. */
   /* Wake up parent, and notice child's load done */
+  
   struct thread* cur = thread_current();
 
   cur->parent->child_load_successful = success;
   sema_up( &(cur->parent->sema) );
+ 
+  /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) {
     thread_exit ();
@@ -116,7 +119,7 @@ process_wait (tid_t child_tid)
 	struct child_process *cp;
 	struct list_elem *e;
 	bool found = false;
-//	printf("Cur process in process_wait %s\n",cur->name);
+//	printf("Cur process in process_wait %d %s\n",child_tid,cur->name);
 	if(child_tid == TID_ERROR) return -1;
 	for(e = list_begin( &(cur->child_list) );
 			e != list_end( &(cur->child_list) );e = list_next(e) ) {
@@ -126,8 +129,10 @@ process_wait (tid_t child_tid)
 			break;
 		}
 	}
+//	printf("Found : %d\n",found);
 	if(!found) return -1;
 	cur->cur_child = child_tid;
+//	printf("Sema Down in process_wait\n");
 	sema_down( &(cur->sema) );
 	return cur->child_status;
 }
