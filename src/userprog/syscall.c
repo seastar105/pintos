@@ -283,6 +283,11 @@ sum_of_four_integers(int a, int b, int c, int d) {
 	return a+b+c+d;
 }
 
+
+/* Modified by Jeon Hae Seong - Start*/
+/* create, remove, filesize, tell, seek have no need to modify.
+ * There may be synch issues.
+ */
 bool sys_create(const char *file,unsigned initial_size) {
 	if(!address_validity(file))
 		sys_exit(-1);
@@ -306,6 +311,7 @@ int sys_open(const char *file) {
 	struct my_file *new = (struct my_file*)malloc(sizeof(struct my_file));
 	struct list *l = &(thread_current()->file_list);
 	// get empty fd, 0 and 1 are reserved
+	// traverse file_list, then get empty fd
 	for(e=list_begin(l);e!=list_end(l);e=list_next(e)){
 		struct my_file *tmp = list_entry(e,struct my_file,elem);
 		if(tmp->fd == cur) {
