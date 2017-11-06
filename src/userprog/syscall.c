@@ -79,7 +79,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 				/* args[0] = fd , args[1] = buffer , args[2] = size */
 //				hex_dump(0,f->esp,20,true);
 				get_args(f,args,3);
-				f->eax = sys_read(*(int*)args[0],*(const char**)args[1],*(size_t*)args[2]);
+				f->eax = sys_read(*(int*)args[0],*(void**)args[1],*(size_t*)args[2]);
 				break;
 			}
 		case SYS_WRITE:
@@ -174,24 +174,24 @@ void
 sys_exit(int status) {
     // written by Kwon Myung Joon
 	struct thread *cur = thread_current();
-    cur->parent->child_status = status; // set child exit status in parent thread
 	// need to yield while parent's cur_child is not cur_thread
 	struct thread *parent = cur->parent;
-	if(parent){
-		while((parent->cur_child != cur->tid) || (parent->status != THREAD_BLOCKED)) thread_yield();
-	    //delete this thread from parent->child_list
-	    struct list_elem * e;
-	    for(e=list_begin(&(cur->parent->child_list)); e != list_end(&(cur->parent->child_list)); e=list_next(e))
-    	{
-			struct child_process *cp = list_entry(e,struct child_process, elem);
-	        if( cp->tid == cur->tid ){
-            	list_remove(&(cp->elem));
-				free(cp);
-        	    break;
-    	    }
-	    }
-		sema_up( &(cur->parent->sema) );			// added by JHS
-	}
+	while((parent->cur_child != cur->tid) || (parent->status != THREAD_BLOCKED)) thread_yield();
+	// delete cur thread's file_list
+
+    // delete this thread from parent->child_list
+	parent->child_status = status;
+    struct list_elem * e;
+    for(e=list_begin(&(cur->parent->child_list)); e != list_end(&(cur->parent->child_list)); e=list_next(e))
+   	{
+		struct child_process *cp = list_entry(e,struct child_process, elem);
+        if( cp->tid == cur->tid ){
+           	list_remove(&(cp->elem));
+			free(cp);
+       	    break;
+   	    }
+    }
+	sema_up( &(cur->parent->sema) );			// added by JHS
 	printf("%s: exit(%d)\n",cur->name,status);
 	thread_exit();
 }
@@ -310,7 +310,7 @@ int sys_open(const char *file) {
 void sys_seek(int fd, unsigned pos) {
 	struct my_file *tmp = searchFileList(&(thread_current()->file_list),fd);
 	if(!tmp)
-		return -1;
+		return ;
 	file_seek(tmp->file,pos);
 //	file_seek(fd,pos);
 }
@@ -333,5 +333,3 @@ int sys_filesize(int fd) {
 void sys_close(int fd) {
 
 }
-
-
