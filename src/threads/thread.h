@@ -113,18 +113,18 @@ struct thread
 #endif
 
     /* Owned by thread.c. */
-	/* Modified by Jeon Hae Seong */
-	struct thread* parent;						/* identifier of parent */
-	tid_t cur_child;							/* tid of current waiting child */
-	bool child_load_successful;					/* value that child is loaded successful */ //KMJ : really need this???
-	int child_status;							/* exit status of child */
-	struct semaphore sema; // KMJ: need seperate sema
+	/* proj 2-1 */
+	struct thread* parent;			/* identifier of parent */
+	tid_t cur_child;				/* tid of current waiting child */
+    bool child_load_successful; 
+    int child_status;				/* exit status of child */
+	struct semaphore sema;
 	struct list child_list;
-	struct list file_list;						/* current thread open file list */
 
-	//Kwon Myung Joon: magic mus be located at the bottem - by pintos manual
-    unsigned magic;                     /* Detects stack overflow. */
-
+    /* proj 2-2 */
+	struct list file_list;		/* current thread open file list */
+    struct file* cur_file;  //KMJ
+    unsigned magic;   /* Detects stack overflow. MUST BE AT THE BOTTOM - KMJ */
   };
 
 /* If false (default), use round-robin scheduler.
