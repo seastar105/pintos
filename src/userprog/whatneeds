@@ -1,4 +1,0 @@
-Set fds in open : get fd by list_ordered, or traversing file_list
-search file in filelist with fd
-
-need global table for file?

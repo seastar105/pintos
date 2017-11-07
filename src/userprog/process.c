@@ -82,7 +82,11 @@ start_process (void *file_name_)
 
   cur->parent->child_load_successful = success;
   sema_up( &(cur->parent->sema) );
- 
+  cur->cur_file = filesys_open(file_name);
+  if(cur->cur_file) {
+	  file_deny_write(cur->cur_file);
+  }
+
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) {
@@ -280,12 +284,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* end of modification from Kwon Myung Joon*/
   /* Open executable file. */
   file = filesys_open (argv[0]); //file_name -> argv[0] by Kwon Myung Joon
+//  if(file)file_deny_write(file);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
-
 //  printf("309\n");
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -417,8 +421,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
 		free(argv[i]);
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
   /* end of modification*/
+		file_close(file);
   return success;
 }
 /* load() helpers. */

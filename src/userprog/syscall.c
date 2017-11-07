@@ -15,7 +15,6 @@
 #include "filesys/filesys.h"
 #define UADDR_BOTTOM ((void*)0x08048000)
 
-
 void sys_halt(void);
 int sys_read(int fd, void* buffer, size_t size);
 int sys_write(int fd, const void* buffer, size_t size);
@@ -196,6 +195,7 @@ sys_exit(int status) {
    	{
 		struct child_process *cp = list_entry(e,struct child_process, elem);
 		e = list_next(e);
+//		printf("%s's child : %s %d\n",parent->name,cp->child->name,cp->tid);		
         if( cp->tid == cur->tid ){
            	list_remove(&(cp->elem));
 			free(cp);
@@ -205,6 +205,9 @@ sys_exit(int status) {
 //	printf("Sema Up in sys_exit\n");
 	sema_up( &(cur->parent->sema) );			// added by JHS
 	printf("%s: exit(%d)\n",cur->name,status);
+	if(cur->cur_file){
+		file_close(cur->cur_file);
+	}
 	thread_exit();
 }
 

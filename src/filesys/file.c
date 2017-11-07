@@ -2,7 +2,7 @@
 #include <debug.h>
 #include "filesys/inode.h"
 #include "threads/malloc.h"
-
+#include <stdio.h>
 /* An open file. */
 struct file 
   {
@@ -121,8 +121,9 @@ file_deny_write (struct file *file)
   ASSERT (file != NULL);
   if (!file->deny_write) 
     {
-      file->deny_write = true;
-      inode_deny_write (file->inode);
+	//	printf("DENY! \n");
+		file->deny_write = true;
+		inode_deny_write (file->inode);
     }
 }
 
@@ -135,6 +136,7 @@ file_allow_write (struct file *file)
   ASSERT (file != NULL);
   if (file->deny_write) 
     {
+	//	printf("ALLOW! \n");
       file->deny_write = false;
       inode_allow_write (file->inode);
     }

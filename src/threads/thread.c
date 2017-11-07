@@ -506,6 +506,7 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&(t->file_list));
   t->child_load_successful = false;
   sema_init( &t->sema , 0 );				
+  t->cur_file = NULL;
   //printf("init_thread : %s\n",t->name);
 }
 
