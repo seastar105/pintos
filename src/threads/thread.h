@@ -174,5 +174,13 @@ int thread_get_load_avg (void);
 struct thread *getThread(tid_t tid);
 struct my_file* searchFileList(struct list *file_list, int fd);
 
-
+/* Project #3 Floating point Arithmetic */
+/* These funcs are defined in thread.c*/
+int int_to_FP(int);
+int FP_to_int(int);					// Floor
+int add_FPs(int,int);
+int sub_FPs(int,int);				// returns a - b
+int mult_FPs(int,int);
+int div_FPs(int,int);
+int round_FP(int);
 #endif /* threads/thread.h */

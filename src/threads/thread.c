@@ -21,6 +21,9 @@
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
+/* Constant Number f used in FP Arithmetic*/
+#define FP_NUM 0x100000000000000
+
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
@@ -75,6 +78,7 @@ static tid_t allocate_tid (void);
 /* Project #3. */
 bool thread_prior_aging;
 #endif
+
 /* 
  * Get thread by tid
  * search in all_list
@@ -649,4 +653,35 @@ struct my_file* searchFileList(struct list *file_list, int fd) {
 	}
 
 	return NULL;
+}
+
+/* Project #3 Floating point Arithmetic */
+
+int int_to_FP(int x) {
+	return x * FP_NUM;
+}
+
+int FP_to_int(int x) {
+	return x / FP_NUM;
+}
+
+int round_FP(int x) {
+	if(x >= 0) return (x+FP_NUM/2)/FP_NUM;
+	else return (x-FP_NUM/2)/FP_NUM;
+}
+
+int add_FPs(int x,int y) {
+	return x+y;
+}
+
+int sub_FPs(int x,int y) {
+	return x-y;
+}
+
+int mult_FPs(int x,int y) {
+	return (int)(((int64_t)x)*y/FP_NUM);
+}
+
+int div_FPs(int x,int y) {
+	return (int)(((int64_t)x)*FP_NUM/y);
 }
