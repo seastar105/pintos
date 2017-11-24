@@ -92,8 +92,18 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  // Added By Jeon Hae Seong
+  // busy waiting (previous method)
+  if(!sleep_list) {
+	  while (timer_elapsed (start) < ticks) 
+	    thread_yield ();
+  }
+  // insert threads into sleep_list ordered 
+  else {
+	  enum intr_level old_level = intr_disable();
+	  sleep_list_insert(start+ticks);
+	  intr_set_level(old_level);
+  }
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -171,7 +181,11 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
-  thread_tick ();
+  thread_tick();
+  // Added By Jeon Hae Seong
+  enum intr_level old_level = intr_disable();
+  sleep_list_wakeup();
+  intr_set_level(old_level);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
@@ -243,4 +257,58 @@ real_time_delay (int64_t num, int32_t denom)
      the possibility of overflow. */
   ASSERT (denom % 1000 == 0);
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
+}
+
+/* Added by JHS for sleep_list */
+
+void sleep_list_init() {
+	sleep_list = (struct list*) calloc(1,sizeof(struct list));
+	list_init(sleep_list);
+}
+
+void sleep_list_destroy() {
+	if(!sleep_list) return ;
+	while(!list_empty(sleep_list)) {
+		struct slept *temp = list_entry(list_front(sleep_list),struct slept,elem);
+		list_remove(&(temp->elem));
+		free(temp);
+	}
+	sleep_list = NULL;
+	free(sleep_list);
+}
+
+/* return true if wakeup time of a is less than that of b */
+bool sleep_list_less_func(const struct list_elem *a, const struct list_elem *b, void *aux) {
+	struct slept *tempA;
+	struct slept *tempB;
+
+	tempA = list_entry(a,struct slept,elem);
+	tempB = list_entry(b,struct slept,elem);
+
+	return tempA->wakeup < tempB->wakeup;
+}
+
+/* argument means wakeup time */
+void sleep_list_insert(int64_t wakeup) {
+	struct slept *temp;
+	temp = (struct slept*)malloc(sizeof(struct slept));
+	temp->wakeup = wakeup;
+	temp->hold = thread_current();
+	list_insert_ordered(sleep_list,&(temp->elem),sleep_list_less_func,NULL);
+	thread_block();
+}
+
+
+/* Wake up threads in sleep list when timer intrrupt occurs */
+void sleep_list_wakeup() {
+	if(!sleep_list) return ;
+	while(!list_empty(sleep_list)) {
+		struct slept *temp = list_entry(list_front(sleep_list),struct slept, elem);
+		if(temp->wakeup <= timer_ticks()) {
+			list_remove(&(temp->elem));
+			thread_unblock(temp->hold);
+		}
+		else
+			break;
+	}
 }

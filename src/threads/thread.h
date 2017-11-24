@@ -128,6 +128,9 @@ struct thread
     /* proj 2-2 */
 	struct list file_list;		/* current thread open file list */
     struct file* cur_file;  //KMJ
+
+	/* proj 3 threads */
+	int nice;						/* have value -20 to 20 */
     unsigned magic;   /* Detects stack overflow. MUST BE AT THE BOTTOM - KMJ */
   };
 
