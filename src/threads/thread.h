@@ -9,6 +9,7 @@
 #ifndef USERPROG
 /* Project #3 */
 extern bool thread_prior_aging;
+
 #endif
 /* States in a thread's life cycle. */
 enum thread_status
@@ -131,6 +132,8 @@ struct thread
 
 	/* proj 3 threads */
 	int nice;						/* have value -20 to 20 */
+    //Note : int priority is already defined above
+    int recent_cpu; // note this is Fixed Point real value!!
     unsigned magic;   /* Detects stack overflow. MUST BE AT THE BOTTOM - KMJ */
   };
 
@@ -169,13 +172,14 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
-
 /* added by JHS */
 struct thread *getThread(tid_t tid);
 struct my_file* searchFileList(struct list *file_list, int fd);
 
-/* Project #3 Floating point Arithmetic */
+/* Project #3 */
+/* Floating point Arithmetic */
 /* These funcs are defined in thread.c*/
+ 
 int int_to_FP(int);
 int FP_to_int(int);					// Floor
 int add_FPs(int,int);
@@ -183,4 +187,9 @@ int sub_FPs(int,int);				// returns a - b
 int mult_FPs(int,int);
 int div_FPs(int,int);
 int round_FP(int);
+/* updating struct thread */
+void update_recent_cpu(void);
+void update_priority(void);
+void update_load_avg(void);
+bool priority_compare_function(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 #endif /* threads/thread.h */

@@ -22,7 +22,7 @@
 #define THREAD_MAGIC 0xcd6abf4b
 
 /* Constant Number f used in FP Arithmetic*/
-#define FP_NUM 0x100000000000000
+const int FP_NUM = 1<<16;  //modified by KMJ
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
@@ -57,6 +57,7 @@ static long long user_ticks;    /* # of timer ticks in user programs. */
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
+static int load_avg;                  /* added by KMJ - this is FP type */
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -385,6 +386,7 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  thread_yield(); //KMJ - to redetermine the highest priority thread.
 }
 
 /* Returns the current thread's priority. */
@@ -396,33 +398,36 @@ thread_get_priority (void)
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int nice) 
 {
-  /* Not yet implemented. */
+  /*written by KMJ */
+    thread_current()->nice=nice;
+    update_recent_cpu();
+    update_priority();
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  /*written by KMJ */
+  return thread_current()->nice;
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  /*witten by KMJ */
+  return round_FP(load_avg*100);
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  /* written by KMJ */
+  return round_FP(thread_current()->recent_cpu*100);
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -655,7 +660,8 @@ struct my_file* searchFileList(struct list *file_list, int fd) {
 	return NULL;
 }
 
-/* Project #3 Floating point Arithmetic */
+/* Project #3 */
+/* Floating point Arithmetic */
 
 int int_to_FP(int x) {
 	return x * FP_NUM;
@@ -684,4 +690,54 @@ int mult_FPs(int x,int y) {
 
 int div_FPs(int x,int y) {
 	return (int)(((int64_t)x)*FP_NUM/y);
+}
+
+/* updating struct thread information - KMJ starts  */
+void update_load_avg(void){
+    int num=list_size(&ready_list); // num of threads in ready queue
+    struct thread * cur=thread_current();
+    if(cur!=idle_thread)num++; //num = num of threads in ready and running
+    load_avg = mult_FPs(div_FPs(int_to_FP(59),int_to_FP(60)),load_avg)
+        +  mult_FPs(div_FPs(int_to_FP(1),int_to_FP(60)),int_to_FP(num));
+}
+void update_recent_cpu(void){
+    //update all recent_cpu in all queue (not ready queue!!)
+    struct list_elem*e;
+    struct thread*t;
+    int rc, nc;
+    for(e=list_begin(&all_list); e!=list_end(&all_list);e=list_next(e)){
+        t=list_entry(e,struct thread, allelem);
+        nc = int_to_FP( t->nice); // type : FP
+        rc = t->recent_cpu; //type : FP
+        t->recent_cpu = mult_FPs(div_FPs(load_avg*2 ,add_FPs(2*load_avg,int_to_FP(1))),rc) + nc;
+    }
+    
+}
+bool priority_compare_function(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED){
+    struct thread * aa = list_entry(a,struct thread,elem);
+    struct thread * bb = list_entry(b,struct thread,elem);
+    if(aa->priority > bb->priority){
+        return true;
+    } else {
+        return false;
+    }
+}
+void update_priority(void){
+    //update all priority in all queue by using information that the thread it self is containing - must be called after calculating recent_cpu and nice.
+    // AND SORT the ready queue!!
+    struct list_elem*e;
+    struct thread*t;
+    int rc, nc;
+    for(e=list_begin(&all_list); e!=list_end(&all_list);e=list_next(e)){
+        t=list_entry(e,struct thread, allelem);
+        nc = int_to_FP( t->nice); // type : FP
+        rc = t->recent_cpu; //type : FP
+        t->priority = PRI_MAX - FP_to_int(div_FPs(rc ,4)) -  FP_to_int(mult_FPs(nc,2));
+        //bound check
+        if(t->priority > PRI_MAX)
+            t->priority = PRI_MAX;
+        else if(t->priority < PRI_MIN)
+            t->priority = PRI_MIN;
+    }
+    list_sort(&ready_list,priority_compare_function,NULL); // sort ready queue
 }

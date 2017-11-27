@@ -182,6 +182,17 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick();
+  //KMJ start
+  if(thread_mlfqs)
+  {
+      cur = thread_current();
+
+      if(ticks % TIMER_FREQ == 0){
+          update_load_avg();
+          update_recent_cpu();
+      }
+  }
+
   // Added By Jeon Hae Seong
   enum intr_level old_level = intr_disable();
   sleep_list_wakeup();
