@@ -185,7 +185,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
   //KMJ start
   if(thread_mlfqs)
   {
-      cur = thread_current();
+      struct thread* cur = thread_current();
 
       if(ticks % TIMER_FREQ == 0){
           update_load_avg();

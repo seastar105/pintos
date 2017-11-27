@@ -129,14 +129,16 @@ main (void)
 
   printf ("Boot complete.\n");
   
+  // Added by JHS
+  sleep_list_init();
   /* Run actions specified on kernel command line. */
   run_actions (argv);
 
+  sleep_list_destroy();
   /* Finish up. */
   shutdown ();
   thread_exit ();
 }
-
 /* Clear the "BSS", a segment that should be initialized to
    zeros.  It isn't actually stored on disk or zeroed by the
    kernel loader, so we have to zero it ourselves.
@@ -258,8 +260,10 @@ parse_options (char **argv)
         thread_mlfqs = true;
 #ifndef USERPROG
 	  /* Project #3 */
-	  else if(!strcmp (name, "-aging"))
+	  else if(!strcmp (name, "-aging")) {
+		  aging_ticks = 0;
 		  thread_prior_aging = true;
+	  }
 #endif
 #ifdef USERPROG
       else if (!strcmp (name, "-ul"))

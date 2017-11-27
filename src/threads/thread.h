@@ -9,7 +9,7 @@
 #ifndef USERPROG
 /* Project #3 */
 extern bool thread_prior_aging;
-
+extern long long aging_ticks;
 #endif
 /* States in a thread's life cycle. */
 enum thread_status
@@ -179,7 +179,9 @@ struct my_file* searchFileList(struct list *file_list, int fd);
 /* Project #3 */
 /* Floating point Arithmetic */
 /* These funcs are defined in thread.c*/
- 
+
+void thread_aging(void);
+
 int int_to_FP(int);
 int FP_to_int(int);					// Floor
 int add_FPs(int,int);

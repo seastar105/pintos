@@ -78,6 +78,7 @@ static tid_t allocate_tid (void);
 #ifndef USERPROG
 /* Project #3. */
 bool thread_prior_aging;
+long long aging_ticks;
 #endif
 
 /* 
@@ -164,7 +165,7 @@ thread_tick (void)
 #ifndef USERPROG
   /* Project #3 */
   if(thread_prior_aging == true) ;
-//	  thread_aging();
+	  thread_aging();
 #endif
 }
 
@@ -213,11 +214,16 @@ thread_create (const char *name, int priority,
   if (t == NULL)
     return TID_ERROR;
 //  printf("page safe?\n");
+  // Added by JHS for project 1
+#ifdef USERPROG
   /* Initialize thread. */
   strlcpy(safe,name,strlen(name)+1);
   token=strtok_r(safe," ",&ptr);
  // printf("token in create?\n");
   init_thread (t, token, priority);
+#else
+  init_thread(t,name,priority);
+#endif
   tid = t->tid = allocate_tid ();
 //  printf("tid done?\n");
   /* added by JHS */
@@ -249,7 +255,7 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
-//  thread_yield();
+  thread_yield();
 
   return tid;
 }
@@ -741,3 +747,18 @@ void update_priority(void){
     }
     list_sort(&ready_list,priority_compare_function,NULL); // sort ready queue
 }
+#ifndef USERPROG
+// aging occurs every 500 ticks
+void thread_aging() {
+	aging_ticks++;
+	if(aging_ticks >= 500) {
+		struct list_elem *e;
+		for(e=list_begin(&ready_list);e!=list_end(&ready_list);e=list_next(e)) {
+			struct thread *t = list_entry(e,struct thread,elem);
+			t->priority++;
+			if(t->priority > PRI_MAX) t->priority = PRI_MAX;
+		}
+		aging_ticks = 0;
+	}
+}
+#endif
