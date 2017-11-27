@@ -16,7 +16,6 @@
 #if TIMER_FREQ > 1000
 #error TIMER_FREQ <= 1000 recommended
 #endif
-
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
@@ -190,6 +189,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
       if(ticks % TIMER_FREQ == 0){
           update_load_avg();
           update_recent_cpu();
+		  update_priority();
       }
   }
 

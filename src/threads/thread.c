@@ -557,8 +557,10 @@ next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  else
+  else {
+	  list_sort(&ready_list,priority_compare_function,NULL);
     return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  }
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -715,7 +717,7 @@ void update_recent_cpu(void){
         t=list_entry(e,struct thread, allelem);
         nc = int_to_FP( t->nice); // type : FP
         rc = t->recent_cpu; //type : FP
-        t->recent_cpu = mult_FPs(div_FPs(load_avg*2 ,add_FPs(2*load_avg,int_to_FP(1))),rc) + nc;
+        t->recent_cpu = mult_FPs(div_FPs(load_avg*2 ,add_FPs(load_avg*2,int_to_FP(1))),rc) + nc;
     }
     
 }

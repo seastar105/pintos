@@ -69,6 +69,7 @@ sema_down (struct semaphore *sema)
   while (sema->value == 0) 
     {
       list_push_back (&sema->waiters, &thread_current ()->elem);
+	  list_sort(&sema->waiters,priority_compare_function,NULL);
       thread_block ();
     }
   sema->value--;
@@ -118,6 +119,9 @@ sema_up (struct semaphore *sema)
                                 struct thread, elem));
   sema->value++;
   intr_set_level (old_level);
+#ifndef USERPROG
+  thread_yield();
+#endif
 }
 
 static void sema_test_helper (void *sema_);
