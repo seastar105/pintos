@@ -186,11 +186,13 @@ timer_interrupt (struct intr_frame *args UNUSED)
   if(thread_mlfqs)
   {
       struct thread* cur = thread_current();
-
+      cur->recent_cpu = cur->recent_cpu + int_to_FP(1);
       if(ticks % TIMER_FREQ == 0){
           update_load_avg();
           update_recent_cpu();
       }
+      if(ticks %4==0)
+          update_priority();
   }
 
   // Added By Jeon Hae Seong

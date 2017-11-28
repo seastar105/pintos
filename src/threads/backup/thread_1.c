@@ -391,10 +391,6 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  if(new_priority > PRI_MAX)
-      new_priority = PRI_MAX;
-  else if(new_priority < PRI_MIN)
-      new_priority = PRI_MIN;
   thread_current ()->priority = new_priority;
   thread_yield(); //KMJ - to redetermine the highest priority thread.
 }
@@ -752,9 +748,9 @@ void update_priority(void){
     int rc, nc;
     for(e=list_begin(&all_list); e!=list_end(&all_list);e=list_next(e)){
         t=list_entry(e,struct thread, allelem);
-        nc = t->nice; // type : int
+        nc = int_to_FP( t->nice); // type : FP
         rc = t->recent_cpu; //type : FP
-        t->priority = PRI_MAX - FP_to_int(div_FPs(rc ,int_to_FP(4))) -  nc*2; // final touch! - KMJ
+        t->priority = PRI_MAX - FP_to_int(div_FPs(rc ,4)) -  FP_to_int(mult_FPs(nc,2));
         //bound check
         if(t->priority > PRI_MAX)
             t->priority = PRI_MAX;
