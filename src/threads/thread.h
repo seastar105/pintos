@@ -130,11 +130,14 @@ struct thread
 	struct list file_list;		/* current thread open file list */
     struct file* cur_file;  //KMJ
 
-	/* proj 3 threads */
+	/* proj 1 threads */
 	int nice;						/* have value -20 to 20 */
     //Note : int priority is already defined above
     int recent_cpu; // note this is Fixed Point real value!!
     unsigned magic;   /* Detects stack overflow. MUST BE AT THE BOTTOM - KMJ */
+
+	/* project 3 VM*/
+	struct hash page_table;				/* virtual memory table belongs to current process*/
   };
 
 /* If false (default), use round-robin scheduler.

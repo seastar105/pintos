@@ -257,7 +257,7 @@ parse_options (char **argv)
       else if (!strcmp (name, "-rs"))
         random_init (atoi (value));
       else if (!strcmp (name, "-mlfqs"))
-        thread_mlfqs = false;
+        thread_mlfqs = true;
 #ifndef USERPROG
 	  /* Project #3 */
 	  else if(!strcmp (name, "-aging")) {

@@ -179,22 +179,25 @@ timer_print_stats (void)
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
+	enum intr_level old_level;
   ticks++;
   thread_tick();
+  
+  old_level = intr_disable();
   //KMJ start
   if(thread_mlfqs)
   {
       struct thread* cur = thread_current();
-
+	  cur->recent_cpu = cur->recent_cpu + int_to_FP(1);
       if(ticks % TIMER_FREQ == 0){
           update_load_avg();
           update_recent_cpu();
-		  update_priority();
-      }
+	  }
+	  if(ticks % 4 == 0) update_priority();
   }
-
+  intr_set_level(old_level);
   // Added By Jeon Hae Seong
-  enum intr_level old_level = intr_disable();
+  old_level = intr_disable();
   sleep_list_wakeup();
   intr_set_level(old_level);
 }

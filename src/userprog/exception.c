@@ -150,6 +150,11 @@ page_fault (struct intr_frame *f)
   not_present = (f->error_code & PF_P) == 0;
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
+  // TODO
+  /* if fault_addr is valid, need to swap in or out(do it in handle_mm_fault)
+	 if not, check is it growable region, then expand stack(in this function)
+	 not growable, kill process
+   */
 #ifdef USERPROG
 //  printf("%s\n",thread_current()->name);
   sys_exit(-1);

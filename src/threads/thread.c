@@ -294,6 +294,7 @@ thread_unblock (struct thread *t)
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_back (&ready_list, &t->elem);
+  list_sort(&ready_list,priority_compare_function,NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -532,6 +533,17 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init( &t->sema , 0 );				
   t->cur_file = NULL;
   //printf("init_thread : %s\n",t->name);
+  if(thread_mlfqs) {
+  // Project #3
+	  if(t!=initial_thread) {
+		  t->nice = thread_current()->nice;
+		  t->recent_cpu = thread_current()->recent_cpu;
+  	  }
+	  else {
+		  t->nice = 0;
+		  t->recent_cpu = 0;
+  	  }
+  }
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -705,8 +717,8 @@ void update_load_avg(void){
     int num=list_size(&ready_list); // num of threads in ready queue
     struct thread * cur=thread_current();
     if(cur!=idle_thread)num++; //num = num of threads in ready and running
-    load_avg = mult_FPs(div_FPs(int_to_FP(59),int_to_FP(60)),load_avg)
-        +  mult_FPs(div_FPs(int_to_FP(1),int_to_FP(60)),int_to_FP(num));
+    load_avg = add_FPs(mult_FPs(div_FPs(int_to_FP(59),int_to_FP(60)),load_avg)
+          ,mult_FPs(div_FPs(int_to_FP(1),int_to_FP(60)),int_to_FP(num)));
 }
 void update_recent_cpu(void){
     //update all recent_cpu in all queue (not ready queue!!)
