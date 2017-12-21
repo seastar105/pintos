@@ -294,7 +294,6 @@ thread_unblock (struct thread *t)
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_back (&ready_list, &t->elem);
-  list_sort(&ready_list,priority_compare_function,NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -392,10 +391,6 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  if(new_priority > PRI_MAX)
-      new_priority = PRI_MAX;
-  else if(new_priority < PRI_MIN)
-      new_priority = PRI_MIN;
   thread_current ()->priority = new_priority;
   thread_yield(); //KMJ - to redetermine the highest priority thread.
 }
@@ -720,8 +715,8 @@ void update_load_avg(void){
     int num=list_size(&ready_list); // num of threads in ready queue
     struct thread * cur=thread_current();
     if(cur!=idle_thread)num++; //num = num of threads in ready and running
-    load_avg = add_FPs(mult_FPs(div_FPs(int_to_FP(59),int_to_FP(60)),load_avg)
-          ,mult_FPs(div_FPs(int_to_FP(1),int_to_FP(60)),int_to_FP(num)));
+    load_avg = mult_FPs(div_FPs(int_to_FP(59),int_to_FP(60)),load_avg)
+        +  mult_FPs(div_FPs(int_to_FP(1),int_to_FP(60)),int_to_FP(num));
 }
 void update_recent_cpu(void){
     //update all recent_cpu in all queue (not ready queue!!)
@@ -732,7 +727,7 @@ void update_recent_cpu(void){
         t=list_entry(e,struct thread, allelem);
         nc = int_to_FP( t->nice); // type : FP
         rc = t->recent_cpu; //type : FP
-        t->recent_cpu = mult_FPs(div_FPs(load_avg*2 ,add_FPs(load_avg*2,int_to_FP(1))),rc) + nc;
+        t->recent_cpu = mult_FPs(div_FPs(load_avg*2 ,add_FPs(2*load_avg,int_to_FP(1))),rc) + nc;
     }
     
 }
@@ -753,9 +748,9 @@ void update_priority(void){
     int rc, nc;
     for(e=list_begin(&all_list); e!=list_end(&all_list);e=list_next(e)){
         t=list_entry(e,struct thread, allelem);
-        nc = t->nice; // type : int
+        nc = int_to_FP( t->nice); // type : FP
         rc = t->recent_cpu; //type : FP
-        t->priority = PRI_MAX - FP_to_int(div_FPs(rc ,int_to_FP(4))) -  nc*2; // final touch! - KMJ
+        t->priority = PRI_MAX - FP_to_int(div_FPs(rc ,4)) -  FP_to_int(mult_FPs(nc,2));
         //bound check
         if(t->priority > PRI_MAX)
             t->priority = PRI_MAX;
