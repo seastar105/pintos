@@ -148,6 +148,7 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  vm_table_destroy(&(cur->vm));
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -504,6 +505,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
          and zero the final PAGE_ZERO_BYTES bytes. */
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
+	/* start of modification by JHS*/
 
       /* Get a page of memory. */
       uint8_t *knpage = palloc_get_page (PAL_USER);

@@ -7,7 +7,7 @@
 // use list to manage frame_list
 // replecement strategy : second chance
 
-void frame_init(void) ;
+void frame_init(void) ;								// init frame table
 void insert_page_to_frame(struct page*);
 struct page *find_page(void *vaddr);				// returns page 
 void delelte_from_frame(void);

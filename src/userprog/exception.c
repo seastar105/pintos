@@ -7,6 +7,10 @@
 #include "threads/thread.h"
 #include "userprog/pagedir.h"
 #include "userprog/syscall.h"
+#include "vm/page.h"
+
+/* page fault handler function */
+bool handle_mm_fault(struct page_entry *);
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -155,6 +159,26 @@ page_fault (struct intr_frame *f)
 	 if not, check is it growable region, then expand stack(in this function)
 	 not growable, kill process
    */
+  struct page_entry *pe;
+  if(!not_present) 							// if page is read-only, then kill process
+	  sys_exit(-1);
+  pe = search_vm_table(fault_addr);
+  if(pe == NULL) { 							// if there's no fault addr's page in page table(consider expand stack)
+	  void *stack_pointer = f->esp;
+	  // if fault_addr is growable region?
+	  // check is valid and fault_addr is in maximum stack size
+	  if(is_user_vaddr(fault_addr) && PHYS_BASE - fault_addr <= 8 * 1024 * 1024) {
+		  // expand stack
+		  void *dst = pg_round_down(fault_addr);
+		  struct page *kpage;
+		  struct page_entry *pe = (struct page_entry *)malloc(sizeof(struct page_entry));
+		  if(!pe) return ;
+		  kpage = malloc_page(PAL_USER | PAL_ZERO);
+		  if(kpage != NULL) {}
+	  }
+	  exit(-1);
+  }
+
 #ifdef USERPROG
 //  printf("%s\n",thread_current()->name);
   sys_exit(-1);

@@ -5,7 +5,9 @@
 #include <stdint.h>
 
 extern struct lock frame_lock;
-
+// page type to determine whether swap out, if ANON(anonymous) swap out every time
+// page is anon if it has 
+//enum page_type {ANON,DATA};
 // structure used in page frame
 struct page {
 	void *kaddr;												// physical address (kernel address matches)
@@ -35,5 +37,6 @@ void vm_table_destroy(struct hash *);
 struct page_entry *find_entry (void *vaddr);
 bool insert_page_entry(struct hash *,struct page_entry *);
 bool delete_page_entry(struct hash *,struct page_entry *);
-
+struct page_entry *search_vm_table(void *vaddr);
+void free_page_virtual(void *vaddr);
 #endif

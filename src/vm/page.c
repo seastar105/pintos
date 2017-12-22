@@ -4,6 +4,8 @@
 #include "userprog/pagedir.h"
 #include "filesys/file.h"
 
+extern struct list page_frame;
+
 static unsigned vm_table_hash_func(const struct hash_elem *, void * UNUSED);
 static bool vm_table_less_func(const struct hash_elem *, const struct hash_elem *, void * UNUSED);
 static void vm_table_destroy_func(struct hash_elem *, void * UNUSED);
@@ -32,8 +34,18 @@ static bool vm_table_less_func(const struct hash_elem *a, const struct hash_elem
 	return pa->vaddr < pb->vaddr;
 }
 
-void free_page_virtual(void *vaddr) {
+void free_page_kernel(void *kaddr) {
+	lock_acquire(&frame_lock);
 
+	struct page *p = find_page(kaddr);
+	if(p)
+		free_page(p);
+
+	lock_release(&frame_lock);
+}
+
+void free_page_virtual(void *vaddr) {
+	free_page_kernel(pagedir_get_page(thread_current->pagedir,vaddr));
 }
 
 static void vm_table_destroy_func(struct hash_elem *e, void *aux UNUSED) {
@@ -42,6 +54,57 @@ static void vm_table_destroy_func(struct hash_elem *e, void *aux UNUSED) {
 	// TODO : need to make free page function with virtual address
 	free_page_virtual(pe->vaddr);
 	// TODO : need to make managing swap table function
-	
+	// fill this line
 	free(pe);
+}
+
+// search page_entry in current thread's page table
+struct page_entry *search_vm_table(void *vaddr) {
+	struct hash *h;
+	struct page_entry pe;
+	struct hash_elem* e;
+	struct thread *t = thread_current();
+	h = &(t->page_table);
+	pe.vaddr = pg_round_down(vaddr);
+	e = hash_find(h,&(pe.elem));
+	if(e != NULL) 
+		return hash_entry(e,struct page_entry,elem);
+	else
+		return NULL;
+}
+
+void free_page(struct page *p) {
+	pagedir_clear_page(p->t->pagedir, p->entry->vaddr);
+	delete_from_frame(p);
+	palloc_free_page(p->kaddr);
+	free(p);
+}
+
+void replace_page() {
+	lock_acquire(&frame_lock);
+	struct page *victim = find_victim();
+	bool dirty = pagedir_is_dirty(victim->t->pagedir, victim->pe->kaddr);
+	if(dirty) {
+		// TODO : swap out victim page
+	}
+	victim->entry->loaded = false;
+	free_page(victim);
+	lock_release(&frame_lock);
+}
+
+// 페이지를 만들고 페이지 프레임에 페이지를 넣는다.
+struct page *malloc_page(enum palloc_flags flags) {
+	struct page *p;
+	p = (struct page*)malloc(sizeof(struct page));
+	if(page == NULL)
+		return NULL;
+	memset(p,0,sizeof(struct page));
+	p->t = thread_current();
+	p->kaddr = palloc_get_page(flags);
+	// if there's no page in user pool, keep trying
+	while(page->kaddr == NULL) {
+		replace_page();
+		p->kaddr = palloc_get_page(flags);
+	}
+	return p;
 }

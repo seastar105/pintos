@@ -228,6 +228,8 @@ thread_create (const char *name, int priority,
 //  printf("tid done?\n");
   /* added by JHS */
   t->parent = thread_current();
+  /* project vm added*/
+  vm_table_init(&(t->vm));
 //  printf("connect dont?\n");
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
