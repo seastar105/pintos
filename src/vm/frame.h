@@ -10,7 +10,7 @@
 void frame_init(void) ;								// init frame table
 void insert_page_to_frame(struct page*);
 struct page *find_page(void *vaddr);				// returns page 
-void delelte_from_frame(void);
+void delete_from_frame(struct page*);
 
 struct page *find_victim(void) ;
 

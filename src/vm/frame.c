@@ -50,7 +50,7 @@ struct list_elem *get_next() {
 			return (frame_pos = list_begin(&page_frame));
 	}
 	frame_pos = list_next(frame_pos);
-	if(frame_pos == list_end(&page_frame)
+	if(frame_pos == list_end(&page_frame))
 		return get_next();
 	return frame_pos;
 }

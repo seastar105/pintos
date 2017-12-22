@@ -8,7 +8,7 @@
 #include "userprog/pagedir.h"
 #include "userprog/syscall.h"
 #include "vm/page.h"
-
+#include "threads/palloc.h"
 /* page fault handler function */
 bool handle_mm_fault(struct page_entry *);
 
@@ -176,7 +176,7 @@ page_fault (struct intr_frame *f)
 		  kpage = malloc_page(PAL_USER | PAL_ZERO);
 		  if(kpage != NULL) {}
 	  }
-	  exit(-1);
+	  sys_exit(-1);
   }
 
 #ifdef USERPROG

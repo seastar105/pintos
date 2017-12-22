@@ -148,7 +148,7 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
-  vm_table_destroy(&(cur->vm));
+  vm_table_destroy(&(cur->page_table));
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -506,27 +506,37 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 	/* start of modification by JHS*/
+	  struct page_entry *pe = (struct page_entry*)malloc(sizeof(struct page_entry));
+	  if(pe == NULL)
+		  return false;
+	  memset (pe, 0 , sizeof(struct page_entry));
+	  pe->offset = ofs;
+	  pe->read_bytes = page_read_bytes;
+	  pe->zero_bytes = page_zero_bytes;
+	  pe->writable = writable;
+	  pe->vaddr = upage;
 
+	  insert_page_entry(&(thread_current()->page_table),pe);
       /* Get a page of memory. */
-      uint8_t *knpage = palloc_get_page (PAL_USER);
+/*      uint8_t *knpage = palloc_get_page (PAL_USER);
       if (knpage == NULL)
         return false;
-
+*/
       /* Load this page. */
-      if (file_read (file, knpage, page_read_bytes) != (int) page_read_bytes)
+/*      if (file_read (file, knpage, page_read_bytes) != (int) page_read_bytes)
         {
           palloc_free_page (knpage);
           return false; 
         }
       memset (knpage + page_read_bytes, 0, page_zero_bytes);
-
+*/
       /* Add the page to the process's address space. */
-      if (!install_page (upage, knpage, writable)) 
+/*      if (!install_page (upage, knpage, writable)) 
         {
           palloc_free_page (knpage);
           return false; 
         }
-
+*/
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
@@ -540,19 +550,44 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp) 
 {
-  uint8_t *kpage;
-  bool success = false;
+//  uint8_t *kpage;
+	struct page *kpage;
+	struct page_entry *pe = (struct page_entry *)malloc(sizeof(struct page_entry));
+	void *upage = ((uint8_t*)PHYS_BASE) - PGSIZE;	// initial stack has one page
+	if(pe == NULL)
+		return false;
+//  bool success = false;
+//	while(1);
+  kpage = malloc_page (PAL_USER | PAL_ZERO);
+  if (kpage != NULL) {
+//	  while(1);
+		kpage->entry = pe;
+		printf("is it okay?\n");
+//		while(1);
+		insert_page_to_frame(kpage);
+//while(1);
+		if(!install_page(upage,kpage->kaddr,true)) {
+//			while(1);
+			free_page_kernel(kpage);
+			free(pe);
+			return false;
+		}
+		
+		*esp = PHYS_BASE - 12;
+		memset (kpage->entry,0,sizeof(struct page_entry));
+		kpage->entry->vaddr = upage;
+		kpage->entry->writable = true;
+		kpage->entry->loaded = true;
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL) 
-    {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
-        *esp = PHYS_BASE;
-      else
-        palloc_free_page (kpage);
-    }
-  return success;
+		insert_page_entry(&(thread_current()->page_table),kpage->entry);
+//      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+//      if (success)
+//        *esp = PHYS_BASE;
+//      else
+//        palloc_free_page (kpage);
+  }
+  return true;
+//  return success;
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel
