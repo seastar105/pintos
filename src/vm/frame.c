@@ -35,9 +35,9 @@ struct page* find_page(void *kaddr) {
 
 void delete_from_frame(struct page* p) {
 	lock_acquire(&frame_lock);
-	if(frame_pos == p->frame_elem)
+	if(frame_pos == &(p->frame_elem))
 		frame_pos = list_remove(frame_pos);
 	else
-		list_remove(p->frame_elem);
+		list_remove(&(p->frame_elem));
 	lock_release(&frame_lock);
 }

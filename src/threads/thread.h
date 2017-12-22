@@ -6,6 +6,8 @@
 #include <stdint.h>
 // Added
 #include "threads/synch.h"
+#include "vm/page.h"
+#include "vm/frame.h"
 #ifndef USERPROG
 /* Project #3 */
 extern bool thread_prior_aging;
