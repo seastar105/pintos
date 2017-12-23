@@ -7,10 +7,7 @@
 #include "threads/thread.h"
 #include "userprog/pagedir.h"
 #include "userprog/syscall.h"
-#include "vm/page.h"
 #include "threads/palloc.h"
-/* page fault handler function */
-bool handle_mm_fault(struct page_entry *);
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -159,40 +156,57 @@ page_fault (struct intr_frame *f)
 	 if not, check is it growable region, then expand stack(in this function)
 	 not growable, kill process
    */
-  struct page_entry *pe;
-  if(!not_present) 							// if page is read-only, then kill process
-	  sys_exit(-1);
-  pe = search_vm_table(fault_addr);
-  if(pe == NULL) { 							// if there's no fault addr's page in page table(consider expand stack)
-	  void *stack_pointer = f->esp;
-	  // if fault_addr is growable region?
-	  // check is valid and fault_addr is in maximum stack size
-	  if(is_user_vaddr(fault_addr) && PHYS_BASE - fault_addr <= 8 * 1024 * 1024) {
-		  // expand stack
-		  void *dst = pg_round_down(fault_addr);
-		  struct page *kpage;
-		  struct page_entry *pe = (struct page_entry *)malloc(sizeof(struct page_entry));
-		  if(!pe) return ;
-		  kpage = malloc_page(PAL_USER | PAL_ZERO);
-		  if(kpage != NULL) {}
-	  }
-	  sys_exit(-1);
-  }
 
-#ifdef USERPROG
-//  printf("%s\n",thread_current()->name);
-  sys_exit(-1);
-#else
+  /* KMJ modification starts + #include palloc  */
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
+  /* printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
   kill (f);
- #endif
+*/
+  if( user == false ) { //accessed by kernel -> exit
+      sys_exit(-1); 
+  } else { //accessed by user
+      if(not_present == false){ // writing to read only page -> exit
+          sys_exit(-1);
+      } else { // not-present page
+        if(write == false){ // trying to read not-present page -> exit
+            sys_exit(-1);
+        } else {
+            //trying to write not-present page
+            
+            //How many pages are needed?
+            size_t page_need = (PHYS_BASE - pg_round_down(fault_addr))/PGSIZE;
+            void * ptr;
+            for( ptr=PHYS_BASE - PGSIZE; ptr >= pg_round_up(fault_addr);page_need --, ptr -= PGSIZE){
+                if(address_validity(ptr)==false) 
+                    break;
+            }
+
+            //Now make page_need pages
+            void * New_Page = pg_round_down(fault_addr);
+            void * Growable_Page;
+            for(;page_need > 0; page_need --){
+                Growable_Page = palloc_get_page(PAL_USER | PAL_ZERO);
+                if(Growable_Page == NULL){
+                    kill(f); //palloc failed
+                }
+                if(pagedir_set_page(thread_current()->pagedir,New_Page,Growable_Page,true)==false){
+                    kill(f); //set_page failed
+                }
+                New_Page += PGSIZE;
+            }
+
+
+
+        }
+      }
+  }
+
 }
 
 bool address_validity(void *addr) {
