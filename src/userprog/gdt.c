@@ -43,7 +43,7 @@ gdt_init (void)
   gdt[SEL_KDSEG / sizeof *gdt] = make_data_desc (0);
   gdt[SEL_UCSEG / sizeof *gdt] = make_code_desc (3);
   gdt[SEL_UDSEG / sizeof *gdt] = make_data_desc (3);
-  gdt[SEL_TSS / sizeof *gdt] = make_tss_desc (tss_get_ ());
+  gdt[SEL_TSS / sizeof *gdt] = make_tss_desc (tss_get ());
 
   /* Load GDTR, TR.  See [IA32-v3a] 2.4.1 "Global Descriptor
      Table Register (GDTR)", 2.4.4 "Task Register (TR)", and

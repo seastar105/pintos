@@ -84,7 +84,7 @@ end
 
 # print backtraces of all threads (based on 'all_list' all threads list)
 define btthreadall
-    btthreadlist all_list allelem
+    btthreadlist &all_list allelem
 end
 document btthreadall
     Print backtraces of all threads
@@ -133,7 +133,7 @@ document loadusersymbols
 end
 
 define debugpintos
-    target remote localhost:10289
+    target remote localhost:1234
 end
 document debugpintos
     Attach debugger to pintos process

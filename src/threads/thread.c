@@ -11,7 +11,6 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
-#include "userprog/syscall.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -71,20 +70,6 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-/* 
- * Get thread by tid
- * search in all_list
- */
-struct thread *getThread(tid_t tid) {
-	struct list_elem *e;
-	for(e = list_begin(&all_list);
-			e != list_end(&all_list);e = list_next(e)){
-		struct thread *th = list_entry(e, struct thread, allelem);
-		if(th->tid == tid)
-			return th;
-	}
-	return NULL;
-}
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -121,15 +106,15 @@ void
 thread_start (void) 
 {
   /* Create the idle thread. */
-  struct semaphore start_idle;
-  sema_init (&start_idle, 0);
-  thread_create ("idle", PRI_MIN, idle, &start_idle);
+  struct semaphore idle_started;
+  sema_init (&idle_started, 0);
+  thread_create ("idle", PRI_MIN, idle, &idle_started);
 
   /* Start preemptive thread scheduling. */
   intr_enable ();
 
   /* Wait for the idle thread to initialize idle_thread. */
-  sema_down (&start_idle);
+  sema_down (&idle_started);
 }
 
 /* Called by the timer interrupt handler at each timer tick.
@@ -181,17 +166,14 @@ tid_t
 thread_create (const char *name, int priority,
                thread_func *function, void *aux) 
 {
-/* current thread is parent */
-  struct thread *t, *th = thread_current();
+  struct thread *t;
   struct kernel_thread_frame *kf;
   struct switch_entry_frame *ef;
   struct switch_threads_frame *sf;
   tid_t tid;
-  enum intr_level old_level;
 
   ASSERT (function != NULL);
 
-  printf("thread create cur thread %s\n",th->name);
   /* Allocate thread. */
   t = palloc_get_page (PAL_ZERO);
   if (t == NULL)
@@ -200,14 +182,6 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-
-  /* added by JHS */
-  t->parent = thread_current();
-
-  /* Prepare thread for first run by initializing its stack.
-     Do this atomically so intermediate values for the 'stack' 
-     member cannot be observed. */
-  old_level = intr_disable ();
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -223,8 +197,6 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
-
-  intr_set_level (old_level);
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -479,7 +451,8 @@ is_thread (struct thread *t)
 static void
 init_thread (struct thread *t, const char *name, int priority)
 {
-	/* I don't know why, calling thread_current() here makes program die */
+  enum intr_level old_level;
+
   ASSERT (t != NULL);
   ASSERT (PRI_MIN <= priority && priority <= PRI_MAX);
   ASSERT (name != NULL);
@@ -490,13 +463,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-  list_push_back (&all_list, &t->allelem);
 
-  // init child_list
-  list_init(&(t->child_list));
-  t->child_load_successful = false;
-  sema_init( &t->sema , 0 );				
-  printf("init_thread : %s\n",t->name);
+  old_level = intr_disable ();
+  list_push_back (&all_list, &t->allelem);
+  intr_set_level (old_level);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

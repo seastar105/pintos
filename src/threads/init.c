@@ -157,12 +157,12 @@ bss_init (void)
 static void
 paging_init (void)
 {
-  uint32_t *pd, *pt_;
+  uint32_t *pd, *pt;
   size_t page;
   extern char _start, _end_kernel_text;
 
   pd = init_page_dir = palloc_get_page (PAL_ASSERT | PAL_ZERO);
-  pt_ = NULL;
+  pt = NULL;
   for (page = 0; page < init_ram_pages; page++)
     {
       uintptr_t paddr = page * PGSIZE;
@@ -173,11 +173,11 @@ paging_init (void)
 
       if (pd[pde_idx] == 0)
         {
-          pt_ = palloc_get_page (PAL_ASSERT | PAL_ZERO);
-          pd[pde_idx] = pde_create (pt_);
+          pt = palloc_get_page (PAL_ASSERT | PAL_ZERO);
+          pd[pde_idx] = pde_create (pt);
         }
 
-      pt_[pte_idx] = pte_create_kernel (vaddr, !in_kernel_text);
+      pt[pte_idx] = pte_create_kernel (vaddr, !in_kernel_text);
     }
 
   /* Store the physical address of the page directory into CR3

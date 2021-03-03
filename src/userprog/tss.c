@@ -90,7 +90,7 @@ tss_init (void)
 
 /* Returns the kernel TSS. */
 struct tss *
-tss_get_ (void) 
+tss_get (void) 
 {
   ASSERT (tss != NULL);
   return tss;

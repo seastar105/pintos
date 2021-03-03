@@ -327,10 +327,10 @@ list_reverse (struct list *list)
 {
   if (!list_empty (list)) 
     {
-      struct list_elem *e_;
+      struct list_elem *e;
 
-      for (e_ = list_begin (list); e_ != list_end (list); e_ = e_->prev)
-        swap (&e_->prev, &e_->next);
+      for (e = list_begin (list); e != list_end (list); e = e->prev)
+        swap (&e->prev, &e->next);
       swap (&list->head.next, &list->tail.prev);
       swap (&list->head.next->prev, &list->tail.prev->next);
     }

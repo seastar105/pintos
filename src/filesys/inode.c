@@ -72,35 +72,35 @@ inode_init (void)
 bool
 inode_create (block_sector_t sector, off_t length)
 {
-  struct inode_disk *inode_disk = NULL;
+  struct inode_disk *disk_inode = NULL;
   bool success = false;
 
   ASSERT (length >= 0);
 
   /* If this assertion fails, the inode structure is not exactly
      one sector in size, and you should fix that. */
-  ASSERT (sizeof *inode_disk == BLOCK_SECTOR_SIZE);
+  ASSERT (sizeof *disk_inode == BLOCK_SECTOR_SIZE);
 
-  inode_disk = calloc (1, sizeof *inode_disk);
-  if (inode_disk != NULL)
+  disk_inode = calloc (1, sizeof *disk_inode);
+  if (disk_inode != NULL)
     {
       size_t sectors = bytes_to_sectors (length);
-      inode_disk->length = length;
-      inode_disk->magic = INODE_MAGIC;
-      if (free_map_allocate (sectors, &inode_disk->start)) 
+      disk_inode->length = length;
+      disk_inode->magic = INODE_MAGIC;
+      if (free_map_allocate (sectors, &disk_inode->start)) 
         {
-          block_write (fs_device, sector, inode_disk);
+          block_write (fs_device, sector, disk_inode);
           if (sectors > 0) 
             {
               static char zeros[BLOCK_SECTOR_SIZE];
               size_t i;
               
               for (i = 0; i < sectors; i++) 
-                block_write (fs_device, inode_disk->start + i, zeros);
+                block_write (fs_device, disk_inode->start + i, zeros);
             }
           success = true; 
         } 
-      free (inode_disk);
+      free (disk_inode);
     }
   return success;
 }

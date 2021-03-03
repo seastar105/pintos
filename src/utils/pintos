@@ -1,7 +1,5 @@
 #! /usr/bin/perl -w
 
-# modified by myunjong!
-
 use strict;
 use POSIX;
 use Fcntl;
@@ -102,7 +100,7 @@ sub parse_command_line {
 	  or exit 1;
     }
 
-    $sim = "qemu" if !defined $sim;
+    $sim = "bochs" if !defined $sim;
     $debug = "none" if !defined $debug;
     $vga = exists ($ENV{DISPLAY}) ? "window" : "none" if !defined $vga;
 
@@ -565,7 +563,7 @@ log: bochsout.txt
 panic: action=fatal
 user_shortcut: keys=ctrlaltdel
 EOF
-    print BOCHSRC "gdbstub: enabled=1,port=10289\n" if $debug eq 'gdb';
+    print BOCHSRC "gdbstub: enabled=1\n" if $debug eq 'gdb';
     print BOCHSRC "clock: sync=", $realtime ? 'realtime' : 'none',
       ", time0=0\n";
     print BOCHSRC "ata1: enabled=1, ioaddr1=0x170, ioaddr2=0x370, irq=15\n"
@@ -620,8 +618,9 @@ sub run_qemu {
       if $vga eq 'terminal';
     print "warning: qemu doesn't support jitter\n"
       if defined $jitter;
-    my (@cmd) = ('qemu');
-#push (@cmd, '-no-kqemu');
+    my (@cmd) = ('qemu-system-i386');
+    push (@cmd, '-device', 'isa-debug-exit');
+
     push (@cmd, '-hda', $disks[0]) if defined $disks[0];
     push (@cmd, '-hdb', $disks[1]) if defined $disks[1];
     push (@cmd, '-hdc', $disks[2]) if defined $disks[2];
@@ -822,14 +821,14 @@ sub xsystem {
 	    for (;;) {
 		if (waitpid ($pid, WNOHANG) != 0) {
 		    # Subprocess died.  Pass through any remaining data.
-		    print $buf while sysread ($in, $buf, 4096) > 0;
+		    do { print $buf } while sysread ($in, $buf, 4096) > 0;
 		    last;
 		}
 
 		# Read and print out pipe data.
 		my ($len) = length ($buf);
-		waitpid ($pid, 0), last
-		  if sysread ($in, $buf, 4096, $len) <= 0;
+		my ($n_read) = sysread ($in, $buf, 4096, $len);
+		waitpid ($pid, 0), last if !defined ($n_read) || $n_read <= 0;
 		print substr ($buf, $len);
 
 		# Remove full lines from $buf and scan them for keywords.
@@ -854,13 +853,17 @@ sub xsystem {
 	alarm (0);
 	&$cleanup ();
 
-	if (WIFSIGNALED ($?) && WTERMSIG ($?) == SIGVTALRM ()) {
+	if (WIFSIGNALED ($?) && WTERMSIG ($?) == SIGVTALRM_number ()) {
 	    seek (STDOUT, 0, 2);
 	    print "\nTIMEOUT after $timeout seconds of host CPU time\n";
 	    exit 0;
 	}
 
-	return $?;
+        # Kind of a gross hack, because qemu's isa-debug-exit device
+        # only allows odd-numbered exit values, so we can't exit
+        # cleanly with 0.  We use exit status 0x63 as an alternate
+        # "clean" exit status.
+	return ($? != 0x6300) && $?;
     }
 }
 
@@ -909,7 +912,7 @@ sub get_load_average {
 # Calls setitimer to set a timeout, then execs what was passed to us.
 sub exec_setitimer {
     if (defined $timeout) {
-	if ($ ge 5.8.0) {
+	if ($^V ge 5.8.0) {
 	    eval "
               use Time::HiRes qw(setitimer ITIMER_VIRTUAL);
               setitimer (ITIMER_VIRTUAL, $timeout, 0);
@@ -925,7 +928,7 @@ sub exec_setitimer {
     exit (1);
 }
 
-sub SIGVTALRM {
+sub SIGVTALRM_number {
     use Config;
     my $i = 0;
     foreach my $name (split(' ', $Config{sig_name})) {
@@ -944,5 +947,3 @@ sub find_in_path {
     -x "$_/$program" and return $program foreach split (':', $ENV{PATH});
     return;
 }
-
-#yeah! modified!

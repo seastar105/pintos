@@ -24,6 +24,7 @@ fsutil_ls (char **argv UNUSED)
     PANIC ("root dir open failed");
   while (dir_readdir (dir, name))
     printf ("%s\n", name);
+  dir_close (dir);
   printf ("End of listing.\n");
 }
 
@@ -35,23 +36,23 @@ fsutil_cat (char **argv)
   const char *file_name = argv[1];
   
   struct file *file;
-  char *buf;
+  char *buffer;
 
   printf ("Printing '%s' to the console...\n", file_name);
   file = filesys_open (file_name);
   if (file == NULL)
     PANIC ("%s: open failed", file_name);
-  buf = palloc_get_page (PAL_ASSERT);
+  buffer = palloc_get_page (PAL_ASSERT);
   for (;;) 
     {
       off_t pos = file_tell (file);
-      off_t n = file_read (file, buf, PGSIZE);
+      off_t n = file_read (file, buffer, PGSIZE);
       if (n == 0)
         break;
 
-      hex_dump (pos, buf, n, true); 
+      hex_dump (pos, buffer, n, true); 
     }
-  palloc_free_page (buf);
+  palloc_free_page (buffer);
   file_close (file);
 }
 
@@ -214,7 +215,7 @@ fsutil_append (char **argv)
      them, though, in case we have more files to append. */
   memset (buffer, 0, BLOCK_SECTOR_SIZE);
   block_write (dst, sector, buffer);
-  block_write (dst, sector, buffer + 1);
+  block_write (dst, sector + 1, buffer);
 
   /* Finish up. */
   file_close (src);
