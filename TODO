@@ -1,0 +1,10 @@
+1. Modify Alarm Clock
+- Now Alarm Clock syscall works busy wating, make it sleep-wake
+
+- If you implement devices/timer.c:alarm_clock properly, then more idle ticks
+
+2. Priority Scheduling
+- Implement priority scheduling properly, add nice value in struct thread modify schedule
+
+3. Advanced Scheduling
+- Priority Scheduling may cause starvation, solve this problem
