@@ -28,6 +28,10 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
+/* List of process in THREAD_BLOCKED state, that is, processes
+ * that are waiting for their own wake_up_tick to be scheduled */
+static struct list sleep_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -92,6 +96,9 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+	/* sleep_list added initialize sleep_list once when pintos
+	 * boot up. */
+	list_init (&sleep_list);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -220,6 +227,46 @@ thread_block (void)
   schedule ();
 }
 
+/* Comparator to keep sleep_list non-descending order by
+ * wakeup_tick in thread */
+bool 
+thread_wakeup_tick_compare(const struct list_elem *a,
+													 const struct list_elem *b, void *aux UNUSED)
+{
+	const int64_t tick_a = list_entry(a, struct thread, elem)->wakeup_tick;
+	const int64_t tick_b = list_entry(b, struct thread, elem)->wakeup_tick;
+	return tick_a < tick_b;
+}
+
+void
+thread_sleep(int64_t tick) 
+{
+	struct thread *curr = thread_current();
+	/* Idle Thread is not to be slept */
+	ASSERT(curr != idle_thread);
+
+	enum intr_level old_level;
+
+	old_level = intr_disable();
+	curr->wakeup_tick = tick;
+	list_insert_ordered(&sleep_list, &curr->elem, thread_wakeup_tick_compare, NULL);
+	thread_block();
+	intr_set_level(old_level);
+}
+
+void
+thread_wakeup(int64_t curr_ticks) 
+{
+	struct list_elem *it = list_begin(&sleep_list);
+	while(it != list_end(&sleep_list))
+	{
+		struct thread *curr_thread = list_entry(it, struct thread, elem);
+		int64_t wakeup_tick = curr_thread->wakeup_tick;
+		if(curr_ticks < wakeup_tick) break;
+		it = list_remove(it);
+		thread_unblock(curr_thread);
+	}
+}
 /* Transitions a blocked thread T to the ready-to-run state.
    This is an error if T is not blocked.  (Use thread_yield() to
    make the running thread ready.)
