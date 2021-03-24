@@ -208,6 +208,11 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+	/* If, new thread has highest priority, yields. */
+	if(t->priority > thread_current()->priority) 
+	{
+		thread_yield();
+	}
   return tid;
 }
 
@@ -248,7 +253,7 @@ thread_priority_compare(const struct list_elem *a,
 	const int priority_b = list_entry(b, struct thread, elem)->priority;
 	/* Since scheduler pull out the front one, newly inserted one
 	 * should be back of the same priority ones for round-robin*/
-	return priority_a >= priority_b;
+	return priority_a > priority_b;
 }
 
 void
@@ -395,7 +400,14 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+	struct thread *first_thread = NULL;
+	if(!list_empty(&ready_list)) 
+		first_thread = list_entry(list_begin(&ready_list), 
+															struct thread, elem);
   thread_current ()->priority = new_priority;
+	if(first_thread != NULL && 
+			first_thread->priority > new_priority)
+		thread_yield();
 }
 
 /* Returns the current thread's priority. */
