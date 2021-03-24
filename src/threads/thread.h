@@ -89,7 +89,7 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
-		int64_t wakeup_tick;								/* Timer tick this thread would be woke up */
+		int64_t wakeup_tick;								/* Tick this thread would be woke up. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -143,6 +143,10 @@ int thread_get_load_avg (void);
 bool thread_wakeup_tick_compare(const struct list_elem *a,
 																const struct list_elem *b,
 																void *aux);
+/* compare function to keep ready list descending order by pirority */
+bool thread_priority_compare(const struct list_elem *a,
+														 const struct list_elem *b,
+														 void *aux);
 void thread_sleep(int64_t);
 void thread_wakeup(int64_t);
 #endif /* threads/thread.h */

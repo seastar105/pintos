@@ -235,21 +235,34 @@ thread_wakeup_tick_compare(const struct list_elem *a,
 {
 	const int64_t tick_a = list_entry(a, struct thread, elem)->wakeup_tick;
 	const int64_t tick_b = list_entry(b, struct thread, elem)->wakeup_tick;
-	return tick_a < tick_b;
+	return tick_a <= tick_b;
+}
+
+/* Comparator to keep ready_list non-ascending order by
+ * thread's priority */
+bool
+thread_priority_compare(const struct list_elem *a,
+												const struct list_elem *b, void *aux UNUSED)
+{
+	const int priority_a = list_entry(a, struct thread, elem)->priority;
+	const int priority_b = list_entry(b, struct thread, elem)->priority;
+	/* Since scheduler pull out the front one, newly inserted one
+	 * should be back of the same priority ones for round-robin*/
+	return priority_a >= priority_b;
 }
 
 void
 thread_sleep(int64_t tick) 
 {
-	struct thread *curr = thread_current();
+	struct thread *cur = thread_current();
 	/* Idle Thread is not to be slept */
-	ASSERT(curr != idle_thread);
+	ASSERT(cur != idle_thread);
 
 	enum intr_level old_level;
 
 	old_level = intr_disable();
-	curr->wakeup_tick = tick;
-	list_insert_ordered(&sleep_list, &curr->elem, thread_wakeup_tick_compare, NULL);
+	cur->wakeup_tick = tick;
+	list_insert_ordered(&sleep_list, &cur->elem, thread_wakeup_tick_compare, NULL);
 	thread_block();
 	intr_set_level(old_level);
 }
@@ -284,7 +297,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+	list_insert_ordered(&ready_list, &t->elem, thread_priority_compare, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -355,7 +368,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+		list_insert_ordered(&ready_list, &cur->elem, thread_priority_compare, NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
