@@ -147,6 +147,8 @@ bool thread_wakeup_tick_compare(const struct list_elem *a,
 bool thread_priority_compare(const struct list_elem *a,
 														 const struct list_elem *b,
 														 void *aux);
+/* returns true if highest thread in ready_list is higher than cur_thread. */
+bool check_preemption(void);
 void thread_sleep(int64_t);
 void thread_wakeup(int64_t);
 #endif /* threads/thread.h */

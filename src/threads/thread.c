@@ -209,10 +209,7 @@ thread_create (const char *name, int priority,
   thread_unblock (t);
 
 	/* If, new thread has highest priority, yields. */
-	if(t->priority > thread_current()->priority) 
-	{
-		thread_yield();
-	}
+	if(check_preemption()) thread_yield();
   return tid;
 }
 
@@ -285,6 +282,16 @@ thread_wakeup(int64_t curr_ticks)
 		thread_unblock(curr_thread);
 	}
 }
+
+bool
+check_preemption()
+{
+	if(list_empty(&ready_list)) return false;
+	struct thread *cur = thread_current();
+	struct thread *nxt = list_entry(list_front(&ready_list), struct thread, elem);
+	return cur->priority < nxt->priority;
+}
+
 /* Transitions a blocked thread T to the ready-to-run state.
    This is an error if T is not blocked.  (Use thread_yield() to
    make the running thread ready.)
@@ -400,14 +407,8 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-	struct thread *first_thread = NULL;
-	if(!list_empty(&ready_list)) 
-		first_thread = list_entry(list_begin(&ready_list), 
-															struct thread, elem);
   thread_current ()->priority = new_priority;
-	if(first_thread != NULL && 
-			first_thread->priority > new_priority)
-		thread_yield();
+	if(check_preemption()) thread_yield();
 }
 
 /* Returns the current thread's priority. */
