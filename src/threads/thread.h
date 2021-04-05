@@ -90,9 +90,13 @@ struct thread
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 		int64_t wakeup_tick;								/* Tick this thread would be woke up. */
+		int original_priority;							/* original priority of thread.				*/
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+
+		struct list holding_locks;					/* List of locks the thread holds currently.	*/
+		struct lock *waiting_lock;					/* lock this thread waiting for now. 	*/
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -151,4 +155,5 @@ bool thread_priority_compare(const struct list_elem *a,
 bool check_preemption(void);
 void thread_sleep(int64_t);
 void thread_wakeup(int64_t);
+void refresh_ready_list(void);
 #endif /* threads/thread.h */

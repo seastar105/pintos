@@ -275,11 +275,11 @@ thread_wakeup(int64_t curr_ticks)
 	struct list_elem *it = list_begin(&sleep_list);
 	while(it != list_end(&sleep_list))
 	{
-		struct thread *curr_thread = list_entry(it, struct thread, elem);
-		int64_t wakeup_tick = curr_thread->wakeup_tick;
+		struct thread *cur = list_entry(it, struct thread, elem);
+		int64_t wakeup_tick = cur->wakeup_tick;
 		if(curr_ticks < wakeup_tick) break;
 		it = list_remove(it);
-		thread_unblock(curr_thread);
+		thread_unblock(cur);
 	}
 }
 
@@ -290,6 +290,12 @@ check_preemption()
 	struct thread *cur = thread_current();
 	struct thread *nxt = list_entry(list_front(&ready_list), struct thread, elem);
 	return cur->priority < nxt->priority;
+}
+
+void
+refresh_ready_list(void)
+{
+	list_sort(&ready_list, thread_priority_compare, NULL);
 }
 
 /* Transitions a blocked thread T to the ready-to-run state.
@@ -407,7 +413,10 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+	struct thread *cur = thread_current();
+	if(cur->original_priority == cur->priority || new_priority > cur->priority)
+		cur->priority = new_priority;		// if thread is not donated, or higher than donated priority
+	cur->original_priority = new_priority;
 	if(check_preemption()) thread_yield();
 }
 
@@ -536,6 +545,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+
+	t->waiting_lock = NULL;
+	list_init(&t->holding_locks);
+	t->original_priority = priority;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
