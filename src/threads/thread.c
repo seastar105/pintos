@@ -19,6 +19,8 @@
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
+#define DEFAULT_RECENT_CPU 0
+#define DEAFULT_NICE 0
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
@@ -53,6 +55,8 @@ struct kernel_thread_frame
 static long long idle_ticks;    /* # of timer ticks spent idle. */
 static long long kernel_ticks;  /* # of timer ticks in kernel threads. */
 static long long user_ticks;    /* # of timer ticks in user programs. */
+static FP load_avg;							/* Load average of ready_list, used for recalculate priority. */
+
 
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
@@ -413,6 +417,8 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+	if(thread_mlfqs) return ;
+
 	struct thread *cur = thread_current();
 	if(cur->original_priority == cur->priority || new_priority > cur->priority)
 		cur->priority = new_priority;		// if thread is not donated, or higher than donated priority
@@ -424,12 +430,15 @@ thread_set_priority (int new_priority)
 int
 thread_get_priority (void) 
 {
-  return thread_current ()->priority;
+	enum intr_level old_level = intr_disable();
+	int ret = thread_current()->priority;
+	intr_set_level(old_level);
+	return ret;
 }
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int nice) 
 {
   /* Not yet implemented. */
 }
@@ -438,12 +447,15 @@ thread_set_nice (int nice UNUSED)
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  enum intr_level old_level;
+	old_level = intr_disable();
+	int ret = thread_current()->recent_cpu;
+	intr_set_level(old_level);
+	return ret;
 }
 
 /* Returns 100 times the system load average. */
-int
+FP
 thread_get_load_avg (void) 
 {
   /* Not yet implemented. */
@@ -451,7 +463,7 @@ thread_get_load_avg (void)
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
-int
+FP
 thread_get_recent_cpu (void) 
 {
   /* Not yet implemented. */
