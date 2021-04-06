@@ -159,4 +159,11 @@ bool check_preemption(void);
 void thread_sleep(int64_t);
 void thread_wakeup(int64_t);
 void sort_ready_list(void);
+
+void update_mlfqs_priority(struct thread *);
+void update_recent_cpu(struct thread *);
+void increment_recent_cpu(struct thread *);
+void update_mlfqs_priority_all(void);
+void update_recent_cpu_all(void);
+void update_load_avg(void);
 #endif /* threads/thread.h */

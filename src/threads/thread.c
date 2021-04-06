@@ -21,7 +21,7 @@
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 #define DEFAULT_RECENT_CPU 0
-#define DEAFULT_NICE 0
+#define DEFAULT_NICE 0
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
@@ -110,6 +110,8 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+
+	load_avg = 0;
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -303,6 +305,68 @@ sort_ready_list(void)
 	list_sort(&ready_list, thread_priority_compare, NULL);
 }
 
+/* mlfqs start */
+void
+update_mlfqs_priority(struct thread *t)
+{
+	if(t == idle_thread) return ;
+	int recent_cpu = round_FP(FP_div_int(t->recent_cpu, 4));
+	int new_priority = PRI_MAX - recent_cpu - 2*t->nice;
+	if(new_priority < PRI_MIN) new_priority = PRI_MIN;
+	if(new_priority > PRI_MAX) new_priority = PRI_MAX;
+	t->priority = new_priority;
+}
+
+void
+update_recent_cpu(struct thread *t)
+{
+	if(t == idle_thread) return ;
+	FP coef = FP_mult_int(load_avg, 2);
+	coef = FP_div(coef, FP_add_int(coef, 1));
+	t->recent_cpu = FP_add_int(FP_mult(coef, t->recent_cpu), t->nice);
+}
+
+void
+increment_recent_cpu(struct thread *t)
+{
+	if(t == idle_thread) return ;
+	t->recent_cpu = FP_add_int(t->recent_cpu, 1);
+}
+
+void 
+update_mlfqs_priority_all()
+{
+	for(struct list_elem *it = list_begin(&all_list);
+			it != list_end(&all_list);it = list_next(it))
+	{
+		struct thread *t = list_entry(it, struct thread, allelem);
+		update_mlfqs_priority(t);
+	}
+	sort_ready_list();
+}
+
+void
+update_recent_cpu_all()
+{
+	for(struct list_elem *it = list_begin(&all_list);
+			it != list_end(&all_list);it = list_next(it))
+	{
+		struct thread *t = list_entry(it, struct thread, allelem);
+		update_recent_cpu(t);
+	}
+}
+
+void
+update_load_avg()
+{
+	int ready_threads = list_size(&ready_list);
+	if(thread_current() != idle_thread) ++ready_threads;
+	FP coef = FP_div_int(int_to_FP(1), 60);
+	load_avg = FP_add(FP_mult(FP_mult_int(coef, 59), load_avg), 
+					 					FP_mult_int(coef, ready_threads));
+}
+/* mlfqs end */
+
 /* Transitions a blocked thread T to the ready-to-run state.
    This is an error if T is not blocked.  (Use thread_yield() to
    make the running thread ready.)
@@ -442,33 +506,34 @@ void
 thread_set_nice (int nice) 
 {
   /* Not yet implemented. */
+	struct thread *cur = thread_current();
+	if(cur != idle_thread)
+	{
+		cur->nice = nice;
+		update_mlfqs_priority(cur);
+		if(check_preemption()) thread_yield();
+	}
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  enum intr_level old_level;
-	old_level = intr_disable();
-	int ret = thread_current()->recent_cpu;
-	intr_set_level(old_level);
-	return ret;
+	return thread_current()->nice;
 }
 
 /* Returns 100 times the system load average. */
 FP
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+	return round_FP(FP_mult_int(load_avg, 100));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 FP
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+	return round_FP(FP_mult_int(thread_current()->recent_cpu, 100));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -562,6 +627,12 @@ init_thread (struct thread *t, const char *name, int priority)
 	t->waiting_lock = NULL;
 	list_init(&t->holding_locks);
 	t->original_priority = priority;
+
+	if(thread_mlfqs)
+	{
+		t->nice = DEFAULT_NICE;
+		t->recent_cpu = DEFAULT_RECENT_CPU;
+	}
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
