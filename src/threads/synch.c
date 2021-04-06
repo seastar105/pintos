@@ -238,7 +238,7 @@ donate_priority(struct thread *cur)
 			holder = holder->waiting_lock->holder;
 	}
 	
-	if(ready_flag) refresh_ready_list();
+	if(ready_flag) sort_ready_list();
 }
 
 void

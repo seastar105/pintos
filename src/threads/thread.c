@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/fixed_point.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -297,7 +298,7 @@ check_preemption()
 }
 
 void
-refresh_ready_list(void)
+sort_ready_list(void)
 {
 	list_sort(&ready_list, thread_priority_compare, NULL);
 }
